@@ -4,14 +4,11 @@
     <title>CM-Works</title>
     <link rel="shortcut icon" type="image/png" href="./src/favicon.png"/>
     <meta name="viewport" width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0>
-    <button id="output" type="button">Click Me!</button>
     <script>
       if( /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ) {
-        var output = document.getElementById('output');
-        output.textContent = "Is Phone";        
+        //phone       
       }else {
-        var output = document.getElementById('output');
-        output.textContent = "Is PC";    
+        //pc    
       }
     </script>
     <style>
