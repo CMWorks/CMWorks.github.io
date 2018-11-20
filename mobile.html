@@ -3,6 +3,7 @@
   <head>
     <title>CM-Works</title>
     <link rel="shortcut icon" type="image/png" href="./src/favicon.png"/>
+    <link rel="stylesheet" href="./src/styles.css">
     <meta name="viewport" width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0>
     <script>
       if( /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ) {
@@ -10,130 +11,6 @@
         document.location = "./";
       }
     </script>
-    <style>
-      /* The Modal (background) */
-      .modal {
-          display: none; /* Hidden by default */
-          position: fixed; /* Stay in place */
-          z-index: 1; /* Sit on top */
-          padding-top: 100px; /* Location of the box */
-          left: 0;
-          top: 0;
-          width: 100%; /* Full width */
-          height: 100%; /* Full height */
-          overflow: auto; /* Enable scroll if needed */
-          background-color: rgb(0,0,0); /* Fallback color */
-          background-color: rgba(0,0,0,0.9); /* Black w/ opacity */
-      }
-
-      /* Modal Content (image) */
-      .modal-content {
-          margin: auto;
-          display: block;
-          width: 60%;
-      }
-
-      /* Caption of Modal Image */
-      #caption {
-          margin: auto;
-          display: block;
-          width: 80%;
-          max-width: 700px;
-          text-align: center;
-          color: #ccc;
-          padding: 10px 0;
-          height: 150px;
-      }
-
-      /* Add Animation */
-      .modal-content, #caption {
-          -webkit-animation-name: zoom;
-          -webkit-animation-duration: 0.6s;
-          animation-name: zoom;
-          animation-duration: 0.6s;
-      }
-
-      @-webkit-keyframes zoom {
-          from {-webkit-transform:scale(0)}
-          to {-webkit-transform:scale(1)}
-      }
-
-      @keyframes zoom {
-          from {transform:scale(0)}
-          to {transform:scale(1)}
-      }
-
-      /* The Close Button */
-      .close {
-          position: absolute;
-          top: 15px;
-          right: 35px;
-          color: #f1f1f1;
-          font-size: 40px;
-          font-weight: bold;
-          transition: 0.3s;
-      }
-
-      .close:hover,
-      .close:focus {
-          color: #bbb;
-          text-decoration: none;
-          cursor: pointer;
-      }
-
-      /* 100% Image Width on Smaller Screens */
-      @media only screen and (max-width: 700px){
-          .modal-content {
-              width: 100%;
-          }
-      }
-    </style>
-    <style>
-      body {
-        background-image: url("https://cmworks.github.io/src/background.png");
-        background-size: cover;
-      }
-      h1 {
-        text-align: center;
-        color: 	#C5B358;
-        font-size: 50px;
-      }
-      a {
-        color: white;
-        text-decoration-line: none;
-        font-size: 30px;
-      }
-      a:hover {
-        color: lime;
-      }
-      .enlargeImage {
-        cursor: zoom-in;
-        border-radius: 5px;
-        transition: 0.3s;
-        display: block;
-        margin-left: auto;
-        margin-right: auto;
-      }
-      .enlargeImage:hover {opacity: 0.7;}
-
-      .enlargeImage::selection{
-        cursor: cell;
-      }
-      table, th, tr{
-        color: white;
-        border: 1px solid gold;
-      }
-      td.image {
-        border-right: 1px solid gold;
-        border-left: 1px solid gold;
-      }
-      td.info {
-        border-right: 1px solid gold;
-      }
-      td.hidden {
-        border-left: 1px solid gold;
-      }
-    </style>
   </head>
   <body>
     <!-- The Modal -->
@@ -150,19 +27,19 @@
         <th colspan="3"><a href="https://cmworks.github.io/Stellar-Light/main.html" target="_blank">Paint Edditor</a></th>
       </tr>
       <tr>
-        <td class="image" colspan="3"><img id="stellarImg1" class="enlargeImage" src="https://cmworks.github.io/src/stellarlight.png" alt="Stellar-Light Image 1" width="492" height="239"></td>
-        <td class="image" colspan="3"><img id="stellarImg1" class="enlargeImage" src="https://cmworks.github.io/src/stellarlight.png" alt="Stellar-Light Image 1" width="492" height="239"></td>
+        <td class="image" colspan="3"><img id="stellarImg1" class="enlargeImage" src="https://cmworks.github.io/src/stellarlight.png" alt="Stellar-Light Image 1"></td>
+        <td class="image" colspan="3"><img id="stellarImg1" class="enlargeImage" src="https://cmworks.github.io/src/stellarlight.png" alt="Stellar-Light Image 1"></td>
       </tr>
       <tr>
-        <td class="image" colspan="3"><img id="stellarImg2" class="enlargeImage" src="https://cmworks.github.io/src/stellarlight2.png" alt="Stellar-Light Image 2" width="492" height="239"></td>
-        <td class="image" colspan="3"><img id="stellarImg2" class="enlargeImage" src="https://cmworks.github.io/src/stellarlight2.png" alt="Stellar-Light Image 2" width="492" height="239"></td>
+        <td class="image" colspan="3"><img id="stellarImg2" class="enlargeImage" src="https://cmworks.github.io/src/stellarlight2.png" alt="Stellar-Light Image 2"></td>
+        <td class="image" colspan="3"><img id="stellarImg2" class="enlargeImage" src="https://cmworks.github.io/src/stellarlight2.png" alt="Stellar-Light Image 2"></td>
       </tr>
       <tr>
-        <td class="image" colspan="3"><img id="stellarImg3" class="enlargeImage" src="https://cmworks.github.io/src/stellarlight3.png" alt="Stellar-Light Image 3" width="492" height="239"></td>
-        <td class="image" colspan="3"><img id="stellarImg3" class="enlargeImage" src="https://cmworks.github.io/src/stellarlight3.png" alt="Stellar-Light Image 3" width="492" height="239"></td>
+        <td class="image" colspan="3"><img id="stellarImg3" class="enlargeImage" src="https://cmworks.github.io/src/stellarlight3.png" alt="Stellar-Light Image 3"></td>
+        <td class="image" colspan="3"><img id="stellarImg3" class="enlargeImage" src="https://cmworks.github.io/src/stellarlight3.png" alt="Stellar-Light Image 3"></td>
       </tr>
       <tr>
-        <td class="hidden"><img src="https://cmworks.github.io/src/transparent.png" alt=" " width="150" height="1"></td>
+        <td class="hidden"><img src="./src/transparent.png" alt=" " width="150" height="1"></td>
         <td class="info" colspan="2">
           <h3>Basic Info</h3>
           <ul>
@@ -180,7 +57,7 @@
               </ul>
           </ul>
         </td>
-        <td class="hidden"><img src="https://cmworks.github.io/src/transparent.png" alt=" " width="150" height="1"></td>
+        <td class="hidden"><img src="./src/transparent.png" alt=" " width="150" height="1"></td>
         <td class="info" colspan="2">
           <h3>Basic Info</h3>
           <ul>
