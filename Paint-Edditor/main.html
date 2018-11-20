@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta name="viewport" width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0>
+    <style> body {padding: 0; margin: 0;} </style>
+    <script src="../library/p5/p5.js"></script>
+    <script src="../library/p5/p5.dom.js"></script>
+    <script src="../library/p5/p5.sound.js"></script>
+    <script>
+
+    var drawable = [];
+    var preX, preY;
+    var th,co,sp;
+    var thickness, Color, reset, collision, brush, spaced, backColor, backColorSubmit;  //Setting comands
+    var setting;
+    var Width = 1300;  //drawable width
+    var Height = 600; //drawable height
+
+    function setup() {
+      createCanvas(Width+200, Height);
+      setting = createGraphics(200, height);
+      setSettingText();
+      setSettingInput();
+      setBoard();
+    }
+
+    function draw() {
+      updateVarables();
+    }
+
+    function setBoard(){
+      for(var x = 0; x < Width; x++){
+        drawable[x] = [];
+        for(var y = 0; y < Height; y++){
+          drawable[x][y] = true;
+        }
+      }
+      setBackground();
+    }
+
+    function setBackground(){
+      RED = red(backColor.value());
+      GREEN = green(backColor.value());
+      BLUE = blue(backColor.value());
+      loadPixels();
+      for(var x = 0; x < Width; x++){
+        for(var y = 0; y < Height; y++){
+          if(drawable[x][y]){
+            var pix = (x + y * width) * 4;
+            pixels[pix + 0] = RED;
+            pixels[pix + 1] = GREEN;
+            pixels[pix + 2] = BLUE;
+            pixels[pix + 3] = 255;
+          }
+        }
+      }
+      updatePixels();
+    }
+
+    function mouseDragged(){
+      run();
+    }
+
+    function run(){
+      setDirection();
+      setBrush();
+      RedrawCanvas();
+    }
+
+    function setDirection(){
+      if(mouseX > preX){
+        x1 = mouseX;  //bigger
+        x2 = preX;    //smalller
+      }else if(preX > mouseX){
+        x1 = preX;  //bigger
+        x2 = mouseX;    //smalller
+      }else if(mouseY > preY){  //(mouseX === preX) but mouseY > preY
+        x1 = mouseY;
+        x2 = preY;
+      }else{
+        x1 = preY;  //bigger
+        x2 = mouseY;    //smalller
+      }
+      x1 = floor(x1);
+      x2 = floor(x2);
+    }
+
+    function setBrush(){
+      if(brush.value() == 1){
+        regularLine(x1, x2);
+      }else if(brush.value() == 2){
+        flatLine(x1, x2);
+      }else if(brush.value() == 3){
+        circleLine(x1, x2);
+      }else if(brush.value() == 4){
+        checkerBoard(x1, x2);
+      }else if(brush.value() == 5){
+        fracture(x1, x2);
+      }else if(brush.value() == 6){
+        wave(x1, x2);
+      }
+    }
+
+    function RedrawCanvas(){
+      updatePixels();
+      setSettingText();
+    }
+
+
+
+    function regularLine(x1, x2){
+      for(var x = x2; x < x1 && x < Width; x+=spaced+2){
+        if(mouseX === preX){
+          y=preY+(x-x2);
+          xNow = preX
+        }else{
+          xNow = x;
+          m = (mouseY-preY)/(mouseX-preX);
+          b = preY-m*preX;
+          y = round(m*(x)+b);
+        }
+        if(xNow < Width && xNow > 0 && y < height && y > 0){
+          if(collision.checked()){
+            circleFilled(xNow, y, thickness, true);
+          }else{
+            circleFilled(xNow, y, thickness, false);
+          } //non collision
+        }
+      } //line loop
+    }
+
+
+
+
+    function flatLine(x1, x2){
+      for(t = -thickness/2; t < thickness/2; t++){
+        for(var x = x2; x < x1 && x < Width; x+=spaced){
+          m = (mouseY-preY)/(mouseX-preX);
+          b = preY-m*preX+t;
+          y = round(m*(x)+b);
+          if(collision.checked()){
+            if(y < height && drawable[x][y]){
+              drawable[x][y] = false;
+              set(x, y, color(Color));
+            }
+          }else{
+            if(y < height){
+              drawable[x][y] = false;
+              set(x, y, color(Color));
+            }
+          } //non collision
+        } //line loop
+      } //thickness loop
+    } //function
+
+    function circleLine(x1, x2){
+      for(var x = x2; x < x1 && x < Width; x+=spaced+2){
+        if(mouseX === preX){
+          y=preY+(x-x2);
+          xNow = preX
+        }else{
+          xNow = x;
+          m = (mouseY-preY)/(mouseX-preX);
+          b = preY-m*preX;
+          y = round(m*(x)+b);
+        }
+        if(xNow < Width && xNow > 0 && y < height && y > 0){
+          if(collision.checked()){
+            //if(drawable[x][y]){
+              Circle(xNow, y, thickness, true);
+            //}
+          }else{
+            Circle(xNow, y, thickness, false);
+          } //non collision
+        }
+      } //line loop
+    } //circle function
+
+    function checkerBoard(x1, x2){
+      for(t = -thickness/2; t < thickness/2; t++){
+        for(var x = x2; x < x1 && x < Width; x+=spaced){
+          m = (mouseY-preY)/(mouseX-preX);
+          b = preY-m*preX+t;
+          y = round(m*(x)+b);
+          if(collision.checked()){
+            if(y < height && y%10>=5 && x%10>=5 && drawable[x][y]){
+              drawable[x][y] = false;
+              set(x, y, color(Color));
+            }
+          }else{
+            if(y < height && y%10>=5 && x%10>=5){
+              drawable[x][y] = false;
+              set(x, y, color(Color));
+            }
+          } //non collision
+        } //line loop
+      } //thickness loop
+    }
+
+    function fracture(x1, x2){
+      for(t = -thickness/2; t < thickness/2; t++){
+        for(var x = x2; x < x1 && x < Width; x+=spaced){
+          m = (mouseY-preY)/(mouseX-preX);
+          b = preY-m*preX+t;
+          y = m*x+b;
+          y += 1/tan(y/t)*t;
+          y += 1/tan(x/t)*t;
+          y = round(y);
+          if(collision.checked()){
+            if(y < height && drawable[x][y]){
+              drawable[x][y] = false;
+              set(x, y, color(Color));
+            }
+          }else{
+            if(y < height && y < round(m*x+b) + (thickness/2) && y > round(m*x+b) - (thickness/2)){
+              drawable[x][y] = false;
+              set(x, y, color(Color));
+            }
+          } //non collision
+        } //line loop
+      } //thickness loop
+    }
+
+    function wave(x1, x2){
+      for(t = -thickness/2; t < thickness/2; t++){
+        for(var x = x2; x < x1 && x < Width; x+=spaced){
+          m = (mouseY-preY)/(mouseX-preX);
+          b = preY-m*preX+t;
+          y = m*(x)+b;
+          y += sin(x/thickness)*thickness;
+          y = round(y);
+          if(collision.checked()){
+            if(y < height && drawable[x][y]){
+              drawable[x][y] = false;
+              set(x, y, color(Color));
+            }
+          }else{
+            if(y < height){
+              drawable[x][y] = false;
+              set(x, y, color(Color));
+            }
+          } //non collision
+        } //line loop
+      } //thickness loop
+    }
+
+    function Circle(x0, y0, r, COLLIDE){
+      for(angle = 0; angle < TWO_PI; angle += .01){
+        x1 = floor(r * cos(angle));
+        y1 = floor(r * sin(angle));
+        if(COLLIDE){
+          if(x0 + x1 > 0 && x0 + x1 < Width && y0 + y1 > 0 && y0 + y1 < Height && drawable[x0 + x1][y0 + y1]){
+            drawable[x0 + x1][y0 + y1] = false;
+            set(x0 + x1, y0 + y1, color(Color));
+          }
+        }else if(x0 + x1 > 0 && x0 + x1 < Width && y0 + y1 > 0 && y0 + y1 < Height){
+          drawable[x0 + x1][y0 + y1] = false;
+          set(x0 + x1, y0 + y1, color(Color));
+        }
+      } //draws Circle
+    }
+
+    function circleFilled(x0, y0, r, COLLIDE){
+      for(y = -r; y <= r; y++){
+        for(x = -r; x <= r; x++){
+          x1 = round(x);
+          y1 = round(y);
+          if(COLLIDE){
+            if(x*x + y*y <= r*r && x0 + x1 < Width && x0 + x1 > 0 && y0 + y1 > 0 && y0 + y1 < height && drawable[x0 + x1][y0 + y1]){
+              drawable[x0 + x1][y0 + y1] = false;
+              set(x0 + x1, y0 + y1, color(Color));
+            }
+          }else if(x*x + y*y <= r*r && x0 + x1 < Width && x0 + x1 > 0 && y0 + y1 > 0 && y0 + y1 < height){
+            drawable[x0 + x1][y0 + y1] = false;
+            set(x0 + x1, y0 + y1, color(Color));
+          }
+        }
+      }
+    }
+
+    function updateVarables(){
+      preX = mouseX;
+      preY = mouseY;
+      thickness = th.value();
+      Color = co.value();
+      spaced = sp.value();
+    }
+
+    function setSettingInput(){
+      th = createSlider(1,100,1,1);
+      th.position(Width+(200-th.width)/2, 120);
+      reset = createButton("RESET");
+      reset.position(Width+(200-reset.width)/2, height-30);
+      reset.mousePressed(setBoard);
+      co = createInput("black");
+      co.position(Width+(200-co.width)/2, 200);
+      sp = createSlider(1,10,1,1);
+      sp.position(Width+(200-sp.width)/2, 280);
+      collision = createCheckbox('Collision', false);
+      collision.position(Width+60, 460);
+      backColor = createInput('lightGrey');
+      backColor.position(Width+(200-backColor.width)/2, 360);
+      backColorSubmit = createButton('Submit');
+      backColorSubmit.position(Width+(200-backColorSubmit.width)/2, 380);
+      backColorSubmit.mousePressed(setBackground);
+      brush = createRadio();
+      brush.option('Redular', 1);
+      brush.option('Flat Tip', 2);
+      brush.option('Circle Line', 3);
+      brush.option('Checker Board', 4);
+      brush.option('Fracture', 5);
+      brush.option('Wave', 6);
+    }
+
+    function setSettingText(){
+      setting.background(150);
+      setting.line(0, 60, 200, 60);
+      image(setting,Width,0);
+      fill('red');
+      noStroke();
+      textSize(20);
+      textAlign(CENTER);
+      text("SETTING",Width+100,35);
+      text("Thickness",Width+100,100);
+      text("Color",Width+100,180);
+      text("Spaced",Width+100,260);
+      text("Background",Width+100,340);
+    }
+
+    </script>
+  </head>
+  <body>
+  </body>
+</html>
