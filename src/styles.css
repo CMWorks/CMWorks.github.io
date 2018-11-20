@@ -30,7 +30,7 @@ a:hover {
   min-width: 200px;
   width: 100%;
   /*min-height: 100px;*/
-  height: 10%;
+  height: 20%;
 }
 .enlargeImage:hover {opacity: 0.7;}
 
