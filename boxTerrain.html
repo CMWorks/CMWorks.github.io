@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta name="viewport" width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0>
+    <style> body {padding: 0; margin: 0;} </style>
+	<script language="javascript" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/0.6.0/p5.min.js"></script>
+    <script language="javascript" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/0.6.0/addons/p5.dom.min.js"></script>
+    <script>
+
+    var scl = 30;
+    var col, row;
+    var w = 2500;
+    var h = 2500;
+    var terrain = [];
+    var Random = 18;  //abs of number, 0==no radom, 10==more random, 100==realy random
+    var xOff = 0;
+    var yOff = 0;
+    var zOff = 0;
+    var speedSlider,sensitivitySlider,button;
+    var speed = 10;
+    var sensitivity = 3;
+    var img;
+
+    function preload() {
+      //img = loadImage('http://localhost:8080/p5_work/sky.png');
+    }
+
+    function setup() {
+      createCanvas(1400, 800, WEBGL);
+      angleMode(RADIANS);
+
+      col = w/scl;
+      row = h/scl;
+
+      button = createButton('reset');
+      button.mousePressed(reset);
+      speedSlider = createSlider(0,50,10,1);
+      sensitivitySlider = createSlider(0,5,3,.1);
+
+      let preX = 0;
+      let preY = 0;
+      for (var x = 0; x < col; x++) {
+        terrain[x] = [];
+        for (var y = 0; y < row; y++) {
+          if(x!==0)
+            preX = terrain[x-1][y];
+          else if(y!==0)
+            preX = terrain[x][y-1];
+          if(y!==0)
+            preY=terrain[x][y-1];
+          else
+            preY=preX;
+          terrain[x][y] = random((preX+preY)/2-(Random),(preX+preY)/2+(Random));
+        }
+      }
+    }
+
+    function draw() {
+      speed = speedSlider.value();
+      sensitivity = sensitivitySlider.value();
+      X = (winMouseY/sensitivity)*(PI/180);
+      Z = (winMouseX/sensitivity)*(PI/180);
+      keyEvent(X,Z);
+
+      background(0);
+      //texture(img);
+      sphere(5000);
+      rotateX(X);
+      rotateZ(Z);
+      gravity();
+      translate(-w/2+xOff, -h/2+yOff,-zOff);
+      for( var y = 0; y < row; y++){
+        beginShape(TRIANGLE_STRIP);
+        for( var x = 0; x < col; x++){
+          fill(Math.abs(terrain[x][y]*2),terrain[x][y]-100,terrain[x][y]*+100);
+          vertex(x*scl, y*scl, terrain[x][y]);
+          vertex(x*scl, (y+1)*scl, terrain[x][y+1]);
+        }
+        endShape();
+      }
+      drawGrid();
+      drawPlayer();
+
+    }
+
+    function drawGrid(){
+      push();
+        translate(w/2,h/2,2);
+        push();
+          fill(255);
+          translate(-75,0);
+          box(150,10,10);
+          fill('red');
+          translate(150,0);
+          box(150,10,10);
+        pop();
+        push();
+          fill('green');
+          translate(0,-75);
+          box(10,150,10);
+          fill(255);
+          translate(0,150);
+          box(10,150,10);
+        pop();
+        push();
+          fill(255);
+          translate(0,0,-75);
+          box(10,10,150);
+          fill('blue');
+          translate(0,0,150);
+          box(10,10,150);
+        pop();
+      pop();
+    }
+
+    function keyEvent(X,Z){
+      if(key=='w'){
+        xOff += Math.sin(Z) * speed;
+        yOff += Math.cos(Z) * speed;
+        xOff += 1;
+      }else if(key=='s'){
+        xOff -= Math.sin(Z) * speed;
+        yOff -= Math.cos(Z) * speed;
+      }else if(key=='a'){
+        xOff += Math.sin(Z + PI/2) *speed;
+        yOff += Math.cos(Z + PI/2) *speed;
+      }else if(key=='d'){
+        xOff += Math.sin(Z - PI/2) *speed;
+        yOff += Math.cos(Z - PI/2) *speed;
+      }else if(keyIsDown(UP_ARROW)){
+        zOff +=speed;
+      }else if(keyIsDown(DOWN_ARROW)){
+        zOff -=speed;
+      }else if(keyCode == 32){
+        zOff += 15;
+      }
+    }
+
+    function mouseWheel(event) {
+      scl+= event.delta/99
+    }
+
+    function reset(){
+      xOff=0;
+      yOff=0;
+      zOff=0;
+      scl=20;
+    }
+
+    function drawPlayer(){
+      camera(0, 0, 1, 0, 0, 0, 0, 1, 0);
+    }
+
+    function gravity(){
+      x = Math.floor(col/2+xOff/scl);
+      y = Math.floor(row/2+yOff/scl);
+        if(zOff>-terrain[x][y]+scl*3)
+          zOff-=9;
+        else
+            zOff = -terrain[x][y]+scl*3;
+    }
+
+    </script>
+  </head>
+  <body>
+  </body>
+</html>
