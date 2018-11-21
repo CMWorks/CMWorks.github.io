@@ -28,8 +28,7 @@ a:hover {
   margin-left: auto;
   margin-right: auto;
   min-width: 200px;
-  width: 100%;
-  /*min-height: 100px;*/
+  width: 90%;
   height: 20%;
 }
 .enlargeImage:hover {opacity: 0.7;}
@@ -41,13 +40,25 @@ table {
   width: 80%;
   background-size: cover;
   background-repeat: no-repeat;
+  border-radius: 15px;
 }
 table, th, tr{
   color: white;
   border: 1px solid gold;
 }
-th {
+th.top {
   padding: 10px;
+  border-top-left-radius: 15px;
+  border-top-right-radius: 15px;
+  border-bottom-left-radius: 85px;
+  border-bottom-right-radius: 85px;
+}
+th.bottom {
+  padding: 10px;
+  border-top-left-radius: 85px;
+  border-top-right-radius: 85px;
+  border-bottom-left-radius: 15px;
+  border-bottom-right-radius: 15px;
 }
 td.image {
   border-right: 1px solid gold;
