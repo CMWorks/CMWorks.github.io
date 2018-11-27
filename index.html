@@ -141,10 +141,11 @@
       var imgArray = [];
       for (var i = 1; i <= 99; i++) {
         temp = document.getElementById('img'+i);
-        if(temp = null) {
-           break;
+        if(temp !== null) {
+           imgArray.push(temp);
+          console.log(temp);
         }else {
-          imgArray.push(temp)
+          break;
         }
       }
       for (var i = 0; i < imgArray.length; i++) { 
