@@ -139,11 +139,15 @@
       var modalImg = document.getElementById("modalImg");
       var captionText = document.getElementById("caption");
       var imgArray = [];
-      for (var i = 1; i <= 9; i++) {
+      for (var i = 1; i <= 99; i++) {
         temp = document.getElementById('img'+i);
-        imgArray.push(temp)
+        if(temp = null) {
+           break;
+        }else {
+          imgArray.push(temp)
+        }
       }
-      for (var i = 0; i < imgArray.length; i++) {
+      for (var i = 0; i < imgArray.length; i++) { 
         imgArray[i].onclick = function () {
           modal.style.display = "block";
           modalImg.src = this.src;
