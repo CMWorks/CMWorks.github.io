@@ -36,6 +36,10 @@ a:hover {
 .enlargeImage::selection{
   cursor: cell;
 }
+.shrinkImage {
+  cursor: zoom-out;
+}
+
 table {
   width: 80%;
   background-size: cover;
