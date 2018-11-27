@@ -36,9 +36,6 @@ a:hover {
 .enlargeImage::selection{
   cursor: cell;
 }
-.shrinkImage {
-  cursor: zoom-out;
-}
 
 table {
   width: 80%;
@@ -95,6 +92,7 @@ td.hidden {
     margin: auto;
     display: block;
     width: 60%;
+    cursor: zoom-out;
 }
 
 /* Caption of Modal Image */
