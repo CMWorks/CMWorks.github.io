@@ -55,9 +55,6 @@ th.top {
   border-bottom-left-radius: 85px;
   border-bottom-right-radius: 85px;
 }
-th.top:hover {
-  background-color: rgba(211,211,211,.2);
-}
 th.bottom {
   padding: 10px;
   border-top-left-radius: 85px;
@@ -65,6 +62,11 @@ th.bottom {
   border-bottom-left-radius: 15px;
   border-bottom-right-radius: 15px;
   border-bottom: none;
+}
+th.bottom:hover {
+  background-color: rgba(211,211,211,.2);
+  color: blue;
+  cursor: zoom-in;
 }
 td.image {
   border-right: 1px solid gold;
