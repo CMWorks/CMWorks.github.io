@@ -49,8 +49,7 @@ table, th, tr{
 }
 th.top {
   padding: 10px;
-  border-top-left-radius: 15px;
-  border-top-right-radius: 15px;
+  border-top: none;
   border-bottom-left-radius: 85px;
   border-bottom-right-radius: 85px;
 }
@@ -58,8 +57,7 @@ th.bottom {
   padding: 10px;
   border-top-left-radius: 85px;
   border-top-right-radius: 85px;
-  border-bottom-left-radius: 15px;
-  border-bottom-right-radius: 15px;
+  border-bottom: none;
 }
 td.image {
   border-right: 1px solid gold;
