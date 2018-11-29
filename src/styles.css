@@ -55,6 +55,10 @@ th.top {
   border-bottom-left-radius: 85px;
   border-bottom-right-radius: 85px;
 }
+th.top:hover {
+/*   background-color: lightgray; */
+  background-color: rgba(0,0,0,0.9);
+}
 th.bottom {
   padding: 10px;
   border-top-left-radius: 85px;
