@@ -57,6 +57,7 @@ th.top {
 }
 th.top:hover {
   opacity: 0.7;
+  cursor: zoom-in;
 }
 th.bottom {
   padding: 10px;
