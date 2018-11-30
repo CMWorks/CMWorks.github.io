@@ -163,7 +163,7 @@
       }
       for (var i = 0; i < playButton.length; i++) { 
         playButton[i].onclick = function () {
-          document.location = "mobile.html";
+          document.location = document.getElementsByTagName('a')[(i*2)+1].href;
         }
       }
       // Get the <span> element that closes the modal
