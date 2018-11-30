@@ -44,7 +44,7 @@
         </td>
       </tr>
       <tr>
-        <th class="bottom" colspan="3"><a href="https://cmworks.github.io/Stellar-Light/main.html" target="_blank">Play</a></th>
+        <th id="play1" class="bottom" colspan="3"><a href="https://cmworks.github.io/Stellar-Light/main.html" target="_blank">Play</a></th>
       </tr>
     </table>
     <div>
@@ -80,7 +80,7 @@
           </td>
         </tr>
         <tr>
-          <th class="bottom" colspan="3"><a href="https://cmworks.github.io/Paint-Edditor/main.html" target="_blank">Play</a></th>
+          <th id="play2" class="bottom" colspan="3"><a href="https://cmworks.github.io/Paint-Edditor/main.html" target="_blank">Play</a></th>
         </tr>
       </table>
     <div>
@@ -149,6 +149,21 @@
           modal.style.display = "block";
           modalImg.src = this.src;
           captionText.innerHTML = this.alt;
+        }
+      }
+      
+      var playButton = [];
+      for (var i = 1; i <= 99; i++) {
+        temp = document.getElementById('play'+i);
+        if(temp !== null) {
+          playButton.push(temp);
+        }else {
+          break;
+        }
+      }
+      for (var i = 0; i < playButton.length; i++) { 
+        playButton[i].onclick = function () {
+          document.location = "mobile.html";
         }
       }
       // Get the <span> element that closes the modal
