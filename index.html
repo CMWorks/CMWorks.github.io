@@ -163,9 +163,12 @@
       }
       for (var i = 0; i < playButton.length; i++) { 
         playButton[i].onclick = function () {
-          console.log(this);
-          console.log(document.getElementsByTagName('a')[(i*2)+1] +" I:"+ i);
-          document.location = document.getElementsByTagName('a')[(i*2)+1].href;
+          for (var j = 0; j < playButton.length; j++) { 
+            if (playButton[j] == this){
+              console.log(document.getElementsByTagName('a')[(j*2)+1] +" I:"+ j);
+              document.location = document.getElementsByTagName('a')[(j*2)+1].href;
+            }
+          }
         }
       }
       // Get the <span> element that closes the modal
