@@ -163,6 +163,8 @@
       }
       for (var i = 0; i < playButton.length; i++) { 
         playButton[i].onclick = function () {
+          console.log(this);
+          console.log(document.getElementsByTagName('a')[(i*2)+1] +" I:"+ i);
           document.location = document.getElementsByTagName('a')[(i*2)+1].href;
         }
       }
