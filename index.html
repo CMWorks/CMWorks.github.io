@@ -44,7 +44,7 @@
         </td>
       </tr>
       <tr>
-        <th id="play1" onmouseover="mouseOver(this)" class="bottom" colspan="3"><a href="https://cmworks.github.io/Stellar-Night/" target="_blank">Play</a></th>
+        <th id="play1" class="bottom" colspan="3"><a href="https://cmworks.github.io/Stellar-Night/" target="_blank">Play</a></th>
       </tr>
     </table>
     <div>
@@ -80,7 +80,7 @@
           </td>
         </tr>
         <tr>
-          <th id="play2" onmouseover="mouseOver(this)" class="bottom" colspan="3"><a href="https://cmworks.github.io/Paint-Edditor/main.html" target="_blank">Play</a></th>
+          <th id="play2" class="bottom" colspan="3"><a href="https://cmworks.github.io/Paint-Edditor/main.html" target="_blank">Play</a></th>
         </tr>
       </table>
     <div>
@@ -162,6 +162,15 @@
         }
       }
       for (var i = 0; i < playButton.length; i++) {
+        playButton[i].addEventListener("mouseenter", function( event ) {
+          // highlight the mouseenter target
+          event.target.style.color = "purple";
+
+          // reset the color after a short delay
+          setTimeout(function() {
+            event.target.style.color = "";
+          }, 500);
+        }, false);
         playButton[i].onclick = function () {
           for (var j = 0; j < playButton.length; j++) {
             if (playButton[j] == this){
@@ -186,10 +195,6 @@
               modal.style.display = "none";
           }
       };
-
-      mouseOver(elt){
-        console.log(elt);
-      }
 
       span.onclick = function() {
         modal.style.display = "none";
