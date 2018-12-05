@@ -44,7 +44,7 @@
         </td>
       </tr>
       <tr>
-        <th id="play1" class="bottom" colspan="3"><a href="https://cmworks.github.io/Stellar-Night/" target="_blank">Play</a></th>
+        <th id="play1" onmouseover="mouseOver(this)" class="bottom" colspan="3"><a href="https://cmworks.github.io/Stellar-Night/" target="_blank">Play</a></th>
       </tr>
     </table>
     <div>
@@ -80,7 +80,7 @@
           </td>
         </tr>
         <tr>
-          <th id="play2" class="bottom" colspan="3"><a href="https://cmworks.github.io/Paint-Edditor/main.html" target="_blank">Play</a></th>
+          <th id="play2" onmouseover="mouseOver(this)" class="bottom" colspan="3"><a href="https://cmworks.github.io/Paint-Edditor/main.html" target="_blank">Play</a></th>
         </tr>
       </table>
     <div>
@@ -186,6 +186,10 @@
               modal.style.display = "none";
           }
       };
+
+      mouseOver(elt){
+        console.log(elt);
+      }
 
       span.onclick = function() {
         modal.style.display = "none";
