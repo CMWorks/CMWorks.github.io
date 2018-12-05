@@ -14,15 +14,15 @@
       <div id="caption"></div>
     </div>
     <h1>Chris's Coding Archive</h1>
-    <!-- Stellar Light -->
-    <table align="center" style="background-image: url('https://cmworks.github.io/src/Stellar-Light/stellarlight4.png');">
+    <!-- Stellar Night -->
+    <table align="center" style="background-image: url('https://cmworks.github.io/src/Stellar-Night/stellarNight4.png');">
       <tr>
-        <th class="top" colspan="3"><a href="https://cmworks.github.io/Stellar-Light/main.html" target="_blank">Stellar Light</a></th>
+        <th class="top" colspan="3"><a href="https://cmworks.github.io/Stellar-Night/" target="_blank">Stellar Night</a></th>
       </tr>
       <tr>
-        <td><img id="img1" class="enlargeImage" src="https://cmworks.github.io/src/Stellar-Light/stellarlight.jpg" alt="Stellar-Light Image 1"></td>
-        <td><img id="img2" class="enlargeImage" src="https://cmworks.github.io/src/Stellar-Light/stellarlight2.jpg" alt="Stellar-Light Image 2"></td>
-        <td><img id="img3" class="enlargeImage" src="https://cmworks.github.io/src/Stellar-Light/stellarlight3.jpg" alt="Stellar-Light Image 3"></td>
+        <td><img id="img1" class="enlargeImage" src="https://cmworks.github.io/src/Stellar-Night/stellarNight.jpg" alt="Stellar-Night Image 1"></td>
+        <td><img id="img2" class="enlargeImage" src="https://cmworks.github.io/src/Stellar-Night/stellarNight2.jpg" alt="Stellar-Night Image 2"></td>
+        <td><img id="img3" class="enlargeImage" src="https://cmworks.github.io/src/Stellar-Night/stellarNight3.jpg" alt="Stellar-Night Image 3"></td>
       </tr>
       <tr>
         <td colspan="3">
@@ -44,7 +44,7 @@
         </td>
       </tr>
       <tr>
-        <th id="play1" class="bottom" colspan="3"><a href="https://cmworks.github.io/Stellar-Light/main.html" target="_blank">Play</a></th>
+        <th id="play1" class="bottom" colspan="3"><a href="https://cmworks.github.io/Stellar-Night/" target="_blank">Play</a></th>
       </tr>
     </table>
     <div>
@@ -89,12 +89,12 @@
     <!-- Other Edditor -->
     <!-- <table align="center">
       <tr>
-        <th class="top" colspan="3"><a href="https://cmworks.github.io/Stellar-Light/main.html" target="_blank">Stellar Light</a></th>
+        <th class="top" colspan="3"><a href="https://cmworks.github.io/Stellar-Night/main.html" target="_blank">Stellar Night</a></th>
       </tr>
       <tr>
-        <td><img id="img7" class="enlargeImage" src="https://cmworks.github.io/src/stellarlight.png" alt="Stellar-Light Image 7"></td>
-        <td><img id="img8" class="enlargeImage" src="https://cmworks.github.io/src/stellarlight2.png" alt="Stellar-Light Image 8"></td>
-        <td><img id="img9" class="enlargeImage" src="https://cmworks.github.io/src/stellarlight3.png" alt="Stellar-Light Image 9"></td>
+        <td><img id="img7" class="enlargeImage" src="https://cmworks.github.io/src/stellarNight.png" alt="Stellar-Night Image 7"></td>
+        <td><img id="img8" class="enlargeImage" src="https://cmworks.github.io/src/stellarNight2.png" alt="Stellar-Night Image 8"></td>
+        <td><img id="img9" class="enlargeImage" src="https://cmworks.github.io/src/stellarNight3.png" alt="Stellar-Night Image 9"></td>
       </tr>
       <tr>
         <td colspan="3">
@@ -116,7 +116,7 @@
         </td>
       </tr>
       <tr>
-        <th class="bottom" colspan="3"><a href="https://cmworks.github.io/Stellar-Light/main.html" target="_blank">Play</a></th>
+        <th class="bottom" colspan="3"><a href="https://cmworks.github.io/Stellar-Night/main.html" target="_blank">Play</a></th>
       </tr>
     </table>-->
     <script>
@@ -144,14 +144,14 @@
           break;
         }
       }
-      for (var i = 0; i < imgArray.length; i++) { 
+      for (var i = 0; i < imgArray.length; i++) {
         imgArray[i].onclick = function () {
           modal.style.display = "block";
           modalImg.src = this.src;
           captionText.innerHTML = this.alt;
         }
       }
-      
+
       var playButton = [];
       for (var i = 1; i <= 99; i++) {
         temp = document.getElementById('play'+i);
@@ -161,9 +161,9 @@
           break;
         }
       }
-      for (var i = 0; i < playButton.length; i++) { 
+      for (var i = 0; i < playButton.length; i++) {
         playButton[i].onclick = function () {
-          for (var j = 0; j < playButton.length; j++) { 
+          for (var j = 0; j < playButton.length; j++) {
             if (playButton[j] == this){
               window.open(document.getElementsByTagName('a')[(j*2)+1].href, '_blank');
             }
@@ -186,7 +186,7 @@
               modal.style.display = "none";
           }
       };
-      
+
       span.onclick = function() {
         modal.style.display = "none";
       }
