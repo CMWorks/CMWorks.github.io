@@ -76,7 +76,7 @@
               if (pic.pixels[ttp(x,y)]>50 && pic.pixels[ttp(x,y)+1]>50 && pic.pixels[ttp(x,y)+2]>50) {
                 pic.set(x,y,color('red'));
               }else {
-                new coord(x,y-1);
+                new coord(x,y);
                 break;
               }
             }
