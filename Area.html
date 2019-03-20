@@ -36,7 +36,7 @@
         points.push(this);
       }
       function printCoord(){
-        for (var i = 0; i <= points.length; i++) {
+        for (var i = 0; i < points.length; i++) {
           if(i!=0) {
             area += (points[i].x - points[i-1].x) * points[i].y
           }
@@ -71,8 +71,8 @@
           //     pic.set(i,y,color('red'));
           //   }
           // }
-          for (var x = 22; x < (370); x++) {
-            for (var y = 427; y > 0; y--) {
+          for (var x = 22; x <= (370); x++) {
+            for (var y = 427; y >= 0; y--) {
               if (pic.pixels[ttp(x,y)]>50 && pic.pixels[ttp(x,y)+1]>50 && pic.pixels[ttp(x,y)+2]>50) {
                 pic.set(x,y,color('red'));
               }else {
