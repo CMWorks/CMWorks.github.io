@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Stellar Night</title>
+    <link rel="shortcut icon" type="image/png" href="https://cmworks.github.io/Stellar-Night/UI-Textures/favicon.png"/>
+    <meta name="viewport" width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0>
+    <script language="javascript" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/0.6.0/p5.min.js"></script>
+    <script language="javascript" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/0.6.0/addons/p5.dom.min.js"></script>
+  </head>
+  <body>
+
+    <script>
+      var pic;
+      var points = [];
+      var area = 0;
+
+      function preload(){
+        // temp = loadImage("http://127.0.0.1:8080/graph.png");
+        pic = loadImage("https://cmworks.github.io/src/graph.png");
+      }
+      function setup(){
+        createCanvas(pic.width,pic.height);
+        background(0);
+        getNumbers();
+        image(pic,0,0);
+        printCoord();
+      }
+      function coord(x,y){
+        this.pixX = x;
+        this.pixY = y;
+        temp = ptc(x,y);
+        this.x = temp[0];
+        this.y = temp[1];
+        points.push(this);
+      }
+      function printCoord(){
+        for (var i = 1; i < points.length; i++) {
+          area += (points[i].x - points[i-1].x) * points[i].y
+        }
+        console.log(area);
+      }
+      function getNumbers(){
+        pic.loadPixels();
+          // for (var i = 427; i > 10; i--) {//0
+          //   pic.set(22,i,color('red'));
+          // }
+          // for (var x = 46; x <=146; x+=25) {
+          //   for (var i = 427; i > 28; i--) {
+          //     pic.set(x,i,color('red'));
+          //   }
+          // }
+          // for (var x = 170; x <370; x+=25) {
+          //   for (var i = 427; i > 28; i--) {
+          //     pic.set(x,i,color('red'));
+          //   }
+          // }
+          //
+          // for (var i = 22; i < 370; i++) {
+          //   pic.set(i,403,color('red'));
+          // }
+          // for (var y = 378; y > 27; y-=25) {
+          //   for (var i = 22; i < 370; i++) {
+          //     pic.set(i,y,color('red'));
+          //   }
+          // }
+          for (var x = 22; x < (370); x++) {
+            for (var y = 427; y > 0; y--) {
+              if (pic.pixels[ttp(x,y)]>50 && pic.pixels[ttp(x,y)+1]>50 && pic.pixels[ttp(x,y)+2]>50) {
+                pic.set(x,y,color('red'));
+              }else {
+                new coord(x,y);
+                break;
+              }
+            }
+          }
+        pic.updatePixels();
+      }
+      function ttp(x, y){
+        temp = (x+y*width)*4;
+        return temp;
+      }
+      function ptc(x,y){// (22,427) = (0,0)
+        var newX, newY;
+        if (x < 46) {//24
+          newX = map(x,22,46,0,.5);
+        }else if (x < 146) {
+          newX = map(x,46,146,.5,2.5);
+        }else if (x < 170) {//24
+          newX = map(x,146,170,2.5,3);
+        }else {
+          newX = map(x,170,370,3,7);
+        }
+
+        if (y < 403) {
+          newY = map(y,28,403,8,.5);
+        }else {
+          newY = map(y,403,427,.5,0);
+        }
+
+        return [newX,newY];
+      }
+    </script>
+  </body>
+</html>
