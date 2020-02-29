@@ -14,13 +14,14 @@
 				color: #080;
 			}
 		</style>
+		<script = src='https://cmworks.github.io/3D-Surface/build/dat.gui.min.js'></script>
 	</head>
 
 	<body>
 		<script = src='https://cmworks.github.io/3D-Surface/build/three.min.js'></script>
 		<script = src='https://cmworks.github.io/3D-Surface/build/OrbitControls.js'></script>
 		<script = src='https://cmworks.github.io/3D-Surface/build/stats.min.js'></script>
-		<script = src='https://cmworks.github.io/3D-Surface/build/dat.gui.min.js'></script>
+		
 		<script = src='https://cmworks.github.io/3D-Surface/build/math.min.js'></script>
 		<script>
 			 var container, stats, autoUp;
@@ -266,7 +267,7 @@
 				window.addEventListener( 'resize', onWindowResize, false );
 
 				//
-				var gui = new DAT.GUI();
+				var gui = new dat.GUI();
 				gui.add( params, 'function' ).name("f(x,y)=").onFinishChange(function(){
     			console.log("Done");
 				});
