@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>3D Surface</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<link type="text/css" rel="stylesheet" href="main.css">
+		<style>
+			body {
+				background-color: #cce0ff;
+				color: #000;
+			}
+			a {
+				color: #080;
+			}
+		</style>
+	</head>
+
+	<body>
+		<script type="module">
+
+			import * as THREE from 'https://cmworks.github.io/3D-Surface/build/three.min.js';
+
+			import { OrbitControls } from 'https://cmworks.github.io/3D-Surface/build/OrbitControls.js';
+			import Stats from 'https://cmworks.github.io/3D-Surface/build/stats.min.js';
+			import { GUI } from 'https://cmworks.github.io/3D-Surface/build/dat.gui.min.js';
+			import { create, all } from 'http://cmworks.github.io/3D-Surface/build/math.min.js';
+
+			/*
+			 * Cloth Simulation using a relaxed constraints solver
+			 */
+			 var container, stats, autoUp;
+			 var camera, scene, renderer;
+			 var plane;
+			 var max = 0, min = 0;
+			 var width = window.innerWidth-20, height = window.innerHeight-20;
+			 var colorRange = 240; // 240 for blue to red
+			 var texture = 0;
+			 var params = {
+				function: "x",
+				size: 5,
+				resolution: 10,
+				autoUpdate: false,
+				update: update,
+				texture: changeTexture,
+				color: "#000000"
+			};
+
+			function update(){
+				scene.remove(plane);
+				var planeMat = new THREE.MeshStandardMaterial({ vertexColors: THREE.VertexColors, side: THREE.DoubleSide });
+				plane = new THREE.Mesh( new THREE.PlaneGeometry(params.size,params.size,params.resolution,params.resolution), planeMat );
+				plane.rotation.x = (-Math.PI/2);
+				scene.add(plane);
+				for (var i = 0; i < plane.geometry.faces.length; i++) {
+					plane.geometry.faces[i].vertexColors[0] = new THREE.Color( 0x000000 );
+					plane.geometry.faces[i].vertexColors[1] = new THREE.Color( 0x000000 );
+					plane.geometry.faces[i].vertexColors[2] = new THREE.Color( 0x000000 );
+				}
+				updatePlane();
+			}
+
+			function changeTexture(){
+				texture+=1;
+				if (texture>4) {
+					texture = 0;
+				}
+				colorPlane();
+			}
+
+			 function f(x,y){
+				 return Math.sin(x)+Math.cos(y);
+			 }
+			 /**
+			  * Re-maps a number from one range to another.
+			  * @method map
+			  * @param  {Number} value  the incoming value to be converted
+			  * @param  {Number} start1 lower bound of the value's current range
+			  * @param  {Number} stop1  upper bound of the value's current range
+			  * @param  {Number} start2 lower bound of the value's target range
+			  * @param  {Number} stop2  upper bound of the value's target range
+			  * @param  {Boolean} [withinBounds] constrain the value to the newly mapped range
+			  * @return {Number}        remapped number
+			  *
+			  */
+			function map(n, start1, stop1, start2, stop2){
+				return (n - start1) / (stop1 - start1) * (stop2 - start2) + start2;
+			}
+
+			function hslToRgb(h, s, l){
+		    var r, g, b;
+
+		    if(s == 0){
+		        r = g = b = l; // achromatic
+		    }else{
+		        var hue2rgb = function hue2rgb(p, q, t){
+		            if(t < 0) t += 1;
+		            if(t > 1) t -= 1;
+		            if(t < 1/6) return p + (q - p) * 6 * t;
+		            if(t < 1/2) return q;
+		            if(t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+		            return p;
+		        }
+
+		        var q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+		        var p = 2 * l - q;
+		        r = hue2rgb(p, q, h + 1/3);
+		        g = hue2rgb(p, q, h);
+		        b = hue2rgb(p, q, h - 1/3);
+		    }
+
+		    return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
+			}
+
+			function updatePlane(){
+				for (var i = 0; i < plane.geometry.vertices.length; i++) {
+					plane.geometry.vertices[i].z = f(plane.geometry.vertices[i].x, plane.geometry.vertices[i].y)
+					if (plane.geometry.vertices[i].z > max) {
+						max = plane.geometry.vertices[i].z;
+					}if (plane.geometry.vertices[i].z < min) {
+						min = plane.geometry.vertices[i].z;
+					}
+				}
+				colorPlane();
+				plane.geometry.verticesNeedUpdate=true;
+			}
+
+			function colorPlane(){
+				for (var i = 0; i < plane.geometry.faces.length; i++) {
+					plane.geometry.faces[i].vertexColors[0].setHex(0x000000)
+					plane.geometry.faces[i].vertexColors[1].setHex(0x000000)
+					plane.geometry.faces[i].vertexColors[2].setHex(0x000000)
+				}
+				for (var i = 0; i < plane.geometry.faces.length; i++) {
+					var a = plane.geometry.vertices[plane.geometry.faces[i].a].z;
+					var b = plane.geometry.vertices[plane.geometry.faces[i].b].z;
+					var c = plane.geometry.vertices[plane.geometry.faces[i].c].z;
+					if (texture == 0) {
+						plane.geometry.faces[i].vertexColors[0].add(new THREE.Color(params.color));
+						plane.geometry.faces[i].vertexColors[1].add(new THREE.Color());
+						plane.geometry.faces[i].vertexColors[2].add(new THREE.Color(params.color));
+					}else if(texture == 1){
+						var ca = Math.round(map(a, min, max, 0, 255));
+						var cb = Math.round(map(b, min, max, 10, 255));
+						var cc = Math.round(map(c, min, max, 20, 255));
+						if (!isNaN(ca)) {
+							plane.geometry.faces[i].vertexColors[0].setHex();
+						}if (!isNaN(cb)) {
+							plane.geometry.faces[i].vertexColors[1].setHex(cb);
+						}if (!isNaN(cc)) {
+							plane.geometry.faces[i].vertexColors[2].setHex(cc);
+						}
+					}else if(texture == 2){
+						var ca = colorRange-Math.round(map(a, min, max, 0, colorRange));
+						var cb = colorRange-Math.round(map(b, min, max, 0, colorRange));
+						var cc = colorRange-Math.round(map(c, min, max, 0, colorRange));
+						var col = hslToRgb(ca, .75, .4);
+						if (!isNaN(ca)) {
+							plane.geometry.faces[i].vertexColors[0].setRGB(col[0],col[1],col[2]);
+						}if (!isNaN(cb)) {
+							col = hslToRgb(cb, .75, .4);
+							plane.geometry.faces[i].vertexColors[1].setHSL(col[0],col[1],col[2]);
+						}if (!isNaN(cc)) {
+							col = hslToRgb(cc, .75, .4);
+							plane.geometry.faces[i].vertexColors[2].setHSL(col[0],col[1],col[2]);
+						}
+					}else if (texture == 3) {//texture 2
+						var ca = Math.round(map(a, min, max, 1000000, colorRange));
+						var cb = Math.round(map(b, min, max, 1000000, colorRange));
+						var cc = Math.round(map(c, min, max, 1000000, colorRange));
+						//console.log(ca+", "+cb+", "+cc);
+						if (!isNaN(ca)) {
+							plane.geometry.faces[i].vertexColors[0].setHex(ca);
+						}if (!isNaN(cb)) {
+							plane.geometry.faces[i].vertexColors[1].setHex(cb);
+						}if (!isNaN(cc)) {
+							plane.geometry.faces[i].vertexColors[2].setHex(cc);
+						}
+					}else {
+						plane.geometry.faces[i].vertexColors[0].add(new THREE.Color(params.color));
+						plane.geometry.faces[i].vertexColors[1].add(new THREE.Color(params.color));
+						plane.geometry.faces[i].vertexColors[2].add(new THREE.Color(params.color));
+					}
+
+				}
+				plane.geometry.colorsNeedUpdate = true;
+			}
+
+
+			init();
+			animate();
+
+			function init() {
+
+				container = document.createElement( 'div' );
+				document.body.appendChild( container );
+
+				// scene
+
+				scene = new THREE.Scene();
+				scene.background = new THREE.Color( 0xcce0ff );
+
+				// camera
+
+				camera = new THREE.PerspectiveCamera( 30, width / height, 1, 10000 );
+
+				// lights
+
+				scene.add( new THREE.AmbientLight( 0x666666 ) );
+
+				var light = new THREE.DirectionalLight( 0x666666, 1 );
+				light.position.set( 50, 200, 100 );
+				light.position.multiplyScalar( 1.3 );
+
+				light.castShadow = true;
+
+				light.shadow.mapSize.width = 1024;
+				light.shadow.mapSize.height = 1024;
+
+				var d = 300;
+
+				light.shadow.camera.left = - d;
+				light.shadow.camera.right = d;
+				light.shadow.camera.top = d;
+				light.shadow.camera.bottom = - d;
+
+				light.shadow.camera.far = 1000;
+
+				scene.add( light );
+
+
+				var planeMat = new THREE.MeshStandardMaterial({ vertexColors: THREE.VertexColors, side: THREE.DoubleSide });
+				plane = new THREE.Mesh( new THREE.PlaneGeometry(10,10,10,10), planeMat );
+				plane.rotation.x = (-Math.PI/2);
+				scene.add(plane);
+				for (var i = 0; i < plane.geometry.faces.length; i++) {
+					plane.geometry.faces[i].vertexColors[0] = new THREE.Color( 0x000000 );
+					plane.geometry.faces[i].vertexColors[1] = new THREE.Color( 0x000000 );
+					plane.geometry.faces[i].vertexColors[2] = new THREE.Color( 0x000000 );
+				}
+				colorPlane();
+				camera.position.set( 10, 5, 15 );
+				camera.lookAt(0,0,10);
+
+				// renderer
+
+				renderer = new THREE.WebGLRenderer( { antialias: true } );
+				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setSize( width, height );
+
+				container.appendChild( renderer.domElement );
+
+				renderer.outputEncoding = THREE.sRGBEncoding;
+
+				renderer.shadowMap.enabled = true;
+
+				// controls
+				var controls = new OrbitControls( camera, renderer.domElement );
+				controls.maxPolarAngle = Math.PI * 0.5;
+				controls.minDistance = 1;
+				controls.maxDistance = 5000;
+				// call this only in static scenes (i.e., if there is no animation loop)
+				controls.addEventListener( 'change', render );
+
+				// performance monitor
+
+				stats = new Stats();
+				container.appendChild( stats.dom );
+
+				//
+
+				window.addEventListener( 'resize', onWindowResize, false );
+
+				//
+				var gui = new GUI();
+				gui.add( params, 'function' ).name("f(x,y)=").onFinishChange(function(){
+    			console.log("Done");
+				});
+				gui.add( params, 'texture' );
+				gui.add( params, 'size' ).min(0).max(100).step(1);
+				gui.add( params, 'resolution' ).min(1).max(100).step(1);
+				autoUp = gui.add( params, 'autoUpdate' );
+				gui.add( params, 'update' );
+    		gui.addColor(params, 'color').onChange(function(value) {
+				  colorPlane();
+				});
+			}
+
+			//
+
+			function onWindowResize() {
+
+				camera.aspect = (window.innerWidth-20) / (window.innerHeight-20);
+				camera.updateProjectionMatrix();
+
+				renderer.setSize( window.innerWidth-20, window.innerHeight-20 );
+
+			}
+
+			//
+
+			function animate() {
+
+				requestAnimationFrame( animate );
+
+				var time = Date.now();
+				render();
+				stats.update();
+				if (params.autoUpdate) {
+					if (params.resolution > 50) {
+				  	autoUp.setValue(false);
+				  }else {
+						update();
+				  }
+				}
+			}
+
+			function render() {
+				renderer.render( scene, camera );
+
+			}
+
+		</script>
+	</body>
+</html>
