@@ -30,10 +30,12 @@
 			 var container, stats, fn;
 			 var camera, scene, renderer;
 			 var plane;
+			 var planeMat = new THREE.MeshStandardMaterial({ vertexColors: THREE.VertexColors, side: THREE.DoubleSide });
 			 var max = 0, min = 0;
 			 var width = window.innerWidth-25, height = window.innerHeight-65;
 			 var colorRange = 240; // 240 for blue to red
 			 var texture = 0;
+			 var compiledFunction;
 			 var params = {
 				function: "x",
 				texture: changeTexture,
@@ -46,9 +48,9 @@
 			};
 
 			function update(){
-				print();
+				min = 0;
+				max = 0;
 				scene.remove(plane);
-				var planeMat = new THREE.MeshStandardMaterial({ vertexColors: THREE.VertexColors, side: THREE.DoubleSide });
 				plane = new THREE.Mesh( new THREE.PlaneGeometry(params.size,params.size,params.resolution,params.resolution), planeMat );
 				plane.rotation.x = (-Math.PI/2);
 				scene.add(plane);
@@ -57,6 +59,8 @@
 					plane.geometry.faces[i].vertexColors[1] = new THREE.Color( 0x000000 );
 					plane.geometry.faces[i].vertexColors[2] = new THREE.Color( 0x000000 );
 				}
+				let fun = params.function;
+				compiledFunction = math.parse(fun).compile();
 				updatePlane();
 			}
 
@@ -69,11 +73,10 @@
 			}
 
 			 function f(a,b){
-				 let fun = params.function;
 				 try {
-					 return parseFloat(math.format(math.parse(fun).compile().evaluate({ x: a, y: b })))
+					 return compiledFunction.evaluate({ x: a, y: b })
 				 } catch (e) {
-					return "x"
+					return NaN;
 				 }
 			 }
 			 /**
@@ -119,11 +122,14 @@
 
 			function updatePlane(){
 				for (var i = 0; i < plane.geometry.vertices.length; i++) {
-					plane.geometry.vertices[i].z = f(plane.geometry.vertices[i].x, plane.geometry.vertices[i].y)*params.zScale;
-					if (plane.geometry.vertices[i].z > max && isFinite(plane.geometry.vertices[i].z)) {
-						max = plane.geometry.vertices[i].z;
-					}if (plane.geometry.vertices[i].z < min && isFinite(plane.geometry.vertices[i].z)) {
-						min = plane.geometry.vertices[i].z;
+					let newZ = f(plane.geometry.vertices[i].x, plane.geometry.vertices[i].y)*params.zScale;
+					plane.geometry.vertices[i].z = newZ;
+					if (isFinite(newZ)) {
+						if (newZ > max) {
+							max = newZ;
+						}if (newZ < min) {
+							min = newZ;
+						}
 					}
 				}
 				colorPlane();
@@ -144,6 +150,16 @@
 						plane.geometry.faces[i].vertexColors[0].add(new THREE.Color(params.color));
 						plane.geometry.faces[i].vertexColors[1].add(new THREE.Color());
 						plane.geometry.faces[i].vertexColors[2].add(new THREE.Color(params.color));
+						var ca = colorRange-Math.round(map(a, min, max, 0, colorRange));
+						var cb = colorRange-Math.round(map(b, min, max, 0, colorRange));
+						var cc = colorRange-Math.round(map(c, min, max, 0, colorRange));
+						if (isFinite(ca)) {
+							plane.geometry.faces[i].vertexColors[0].add(new THREE.Color("hsl("+ca+",75%,40%)"));
+						}if (isFinite(cb)) {
+							plane.geometry.faces[i].vertexColors[1].add(new THREE.Color("hsl("+cb+",75%,40%)"));
+						}if (isFinite(cc)) {
+							plane.geometry.faces[i].vertexColors[2].add(new THREE.Color("hsl("+cc+",75%,40%)"));
+						}
 					}else if(texture == 1){ // blue map
 						var cb = Math.round(map(b, min, max, 00, 255));
 						var cc = Math.round(map(c, min, max, 0, 255));
@@ -227,8 +243,6 @@
 
 				scene.add( light );
 
-
-				var planeMat = new THREE.MeshStandardMaterial({ vertexColors: THREE.VertexColors, side: THREE.DoubleSide });
 				plane = new THREE.Mesh( new THREE.PlaneGeometry(10,10,10,10), planeMat );
 				plane.rotation.x = (-Math.PI/2);
 				scene.add(plane);
@@ -279,7 +293,7 @@
 					colorPlane();
 				});
 				gui.add( params, 'size' ).min(0).max(15).step(1);
-				gui.add( params, 'resolution' ).min(1).max(250).step(1);
+				gui.add( params, 'resolution' ).min(1).max(1000).step(1);
 				gui.add( params, 'zScale' ).min(0).max(2).name("Z-Scale");
 				gui.add( params, 'update' );
 				update();
