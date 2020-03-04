@@ -4,7 +4,6 @@
 		<title>3D Surface</title>
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
-		<link type="text/css" rel="stylesheet" href="main.css">
 		<style>
 			body {
 				background-color: #cce0ff;
@@ -44,8 +43,34 @@
 				resolution: 10,
 				autoUpdate: false,
 				zScale: 1,
-				update: update
+				tangents: false,
+				update: update,
+				coordIn: "0,0",
+				tanOut: "",
+				Clear: function(){tanPlane.visible = false;circle.visible = false;}
 			};
+
+			//grid
+			var xaxis, yaxis, zaxis;
+
+			// Latex output
+			let options = {parenthesis: 'keep', implicit: 'hide'};
+			const pretty = document.getElementById('pretty');
+			let parenthesis = 'keep';
+			let implicit = 'hide';
+			pretty.innerHTML = '$$' + math.parse(params.function).toTex({parenthesis: parenthesis}) + '$$';
+
+			//intersections
+			//Note: plane x is point x, plane y is point z, plane z is point y
+			var raycaster, mouse = { x : 0, y : 0 };
+			var circle;
+
+			//tangents
+			var tanLineX, tanLineY, tanPlane;
+			var tanFunction;
+			var tanFolder;
+			var r = 2;
+
 
 			function update(){
 				min = 0;
@@ -79,6 +104,17 @@
 					return NaN;
 				 }
 			 }
+
+			 function calculateTan(a,b){
+				 c = math.parse(params.function).evaluate({x: a, y: b});
+				 let dx = math.derivative(params.function, "x").evaluate({x: a, y: b});
+				 let dy = math.derivative(params.function, "y").evaluate({x: a, y: b});
+				 let cc = math.round(c-dx*a-dy*b,r);
+				 tanFunction = math.format(math.simplify(math.parse(math.round(dx,r)+"x+"+math.round(dy,r)+"y+"+math.round(c-dx*a-dy*b,r)), {}, {exactFractions: false}));
+				 //tanFunction = math.format(math.simplify(math.parse(tanFunction)));
+				 return [tanFunction, new THREE.Vector3(a,c,b)];
+			 }
+
 			 /**
 				* Re-maps a number from one range to another.
 				* @method map
@@ -122,7 +158,7 @@
 
 			function updatePlane(){
 				for (var i = 0; i < plane.geometry.vertices.length; i++) {
-					let newZ = f(plane.geometry.vertices[i].x, plane.geometry.vertices[i].y)*params.zScale;
+					let newZ = f(plane.geometry.vertices[i].x, -plane.geometry.vertices[i].y)*params.zScale;
 					plane.geometry.vertices[i].z = newZ;
 					if (isFinite(newZ)) {
 						if (newZ > max) {
@@ -201,7 +237,6 @@
 				plane.geometry.colorsNeedUpdate = true;
 			}
 
-
 			init();
 			animate();
 
@@ -243,6 +278,8 @@
 
 				scene.add( light );
 
+
+				// adds plane
 				plane = new THREE.Mesh( new THREE.PlaneGeometry(10,10,10,10), planeMat );
 				plane.rotation.x = (-Math.PI/2);
 				scene.add(plane);
@@ -253,6 +290,23 @@
 				}
 				camera.position.set( 10, 5, 15 );
 				camera.lookAt(0,0,10);
+
+				//adds tangent plane
+				tanPlane = new THREE.Mesh( new THREE.PlaneGeometry(10,10), planeMat );
+				tanPlane.visible = false;
+				tanPlane.rotateX(math.pi/2);
+				scene.add(tanPlane);
+
+				//grid
+				xaxis = new THREE.Mesh(new THREE.BoxGeometry( params.size,.1,.1 ), new THREE.MeshBasicMaterial( {color: 0xff0000} ));
+				yaxis = new THREE.Mesh(new THREE.BoxGeometry( .1,params.size,.1 ), new THREE.MeshBasicMaterial( {color: 0x0000ff} ));
+				zaxis = new THREE.Mesh(new THREE.BoxGeometry( .1,.1,params.size ), new THREE.MeshBasicMaterial( {color: 0x00ff00} ));
+				xaxis.geometry.translate(params.size/2,0,0)
+				yaxis.geometry.translate(0,params.size/2,0)
+				zaxis.geometry.translate(0,0,params.size/2)
+				scene.add(xaxis);
+				scene.add(yaxis);
+				scene.add(zaxis);
 
 				// renderer
 
@@ -266,9 +320,16 @@
 
 				renderer.shadowMap.enabled = true;
 
+				// intersections
+				raycaster = new THREE.Raycaster();
+    		renderer.domElement.addEventListener( 'mousemove', updateMouse, false );
+				circle = new THREE.Mesh(new THREE.SphereGeometry( .1, 32, 32 ), new THREE.MeshBasicMaterial( {color: 0xffff00} ));
+				circle.visible = false;
+				scene.add(circle);
+
 				// controls
 				var controls = new THREE.OrbitControls( camera, renderer.domElement );
-				controls.maxPolarAngle = Math.PI * 0.5;
+				//controls.maxPolarAngle = Math.PI * 0.5;
 				controls.minDistance = 1;
 				controls.maxDistance = 5000;
 				// call this only in static scenes (i.e., if there is no animation loop)
@@ -279,11 +340,10 @@
 				stats = new Stats();
 				container.appendChild( stats.dom );
 
-				//
-
+				//event listener
 				window.addEventListener( 'resize', onWindowResize, false );
 
-				//
+				// gui
 				var gui = new dat.GUI();
 				fn = gui.add( params, 'function' ).name("f(x,y)=").onFinishChange(function(){
 					update();
@@ -296,6 +356,14 @@
 				gui.add( params, 'resolution' ).min(1).max(1000).step(1);
 				gui.add( params, 'zScale' ).min(0).max(2).name("Z-Scale");
 				gui.add( params, 'update' );
+				tanFolder = gui.addFolder("Tangent");
+				coordIn = tanFolder.add(params, "coordIn").name("Coordinate x,y").onFinishChange(function(){
+					drawTangents();
+				});
+				tanFolder.add( params, 'tangents').name("Auto Display");
+				tanOut = tanFolder.add(params, "tanOut").name("z=");
+				document.getElementsByTagName("input")[7].disabled = true;
+				tanFolder.add(params, "Clear");
 				update();
 			}
 
@@ -311,24 +379,18 @@
 			function animate() {
 
 				requestAnimationFrame( animate );
-
 				var time = Date.now();
 				render();
 				stats.update();
 			}
 
 			function render() {
-				renderer.render( scene, camera );
 				print();
+				if (params.tangents) {
+					raycast();
+				}
+				renderer.render( scene, camera );
 			}
-
-			let options = {parenthesis: 'keep', implicit: 'hide'}
-			const pretty = document.getElementById('pretty')
-			let parenthesis = 'keep'
-			let implicit = 'hide'
-
-			// initialize with an example expression
-			pretty.innerHTML = '$$' + math.parse(params.function).toTex({parenthesis: parenthesis}) + '$$'
 
 			function print () {
 				let node = null
@@ -350,6 +412,91 @@
 					MathJax.Hub.Queue(['Text', elem, latex])
 				}
 				catch (err) {}
+			}
+
+			function updateMouse( e ){
+				mouse.x = ( e.clientX / (window.innerWidth-25) ) * 2 - 1 - (11/window.innerWidth);
+				mouse.y = - ( e.clientY / (window.innerHeight-65) ) * 2 + 1 + (110/window.innerHeight);
+			}
+
+			function raycast ( ) {
+				//1. sets the mouse position with a coordinate system where the center
+				//   of the screen is the origin
+
+
+				//2. set the picking ray from the camera position and mouse coordinates
+				raycaster.setFromCamera( mouse, camera );
+
+				//3. compute intersections
+				var intersects = raycaster.intersectObjects( [plane] );
+				if (intersects.length > 0) {
+					let a = intersects[0].point.x, b = intersects[0].point.z, c = intersects[0].point.y;
+					let v = calculateTan(a,b);
+					circle.position.copy(v[1]);
+					tanOut.setValue(v[0]);
+					coordIn.setValue(math.round(a,r)+","+math.round(b,r))
+
+					//updates tangent plane
+					tanPlane.geometry.vertices[0].x = a-1;
+					tanPlane.geometry.vertices[0].y = b-1;
+					tanPlane.geometry.vertices[0].z = -math.parse(tanFunction).evaluate({ x: a-1, y: b-1 });
+
+					tanPlane.geometry.vertices[1].x = a+1;
+					tanPlane.geometry.vertices[1].y = b-1;
+					tanPlane.geometry.vertices[1].z = -math.parse(tanFunction).evaluate({ x: a+1, y: b-1 });
+
+					tanPlane.geometry.vertices[3].x = a+1;
+					tanPlane.geometry.vertices[3].y = b+1;
+					tanPlane.geometry.vertices[3].z = -math.parse(tanFunction).evaluate({ x: a+1, y: b+1 });
+
+					tanPlane.geometry.vertices[2].x = a-1;
+					tanPlane.geometry.vertices[2].y = b+1;
+					tanPlane.geometry.vertices[2].z = -math.parse(tanFunction).evaluate({ x: a-1, y: b+1 });
+
+					tanPlane.geometry.verticesNeedUpdate=true;
+					// console.log(f(intersects[ i ].point.x, intersects[ i ].point.y));
+					/*
+					An intersection has the following properties :
+					- object : intersected object (THREE.Mesh)
+					- distance : distance from camera to intersection (number)
+					- face : intersected face (THREE.Face3)
+					- faceIndex : intersected face index (number)
+					- point : intersection point (THREE.Vector3)
+					- uv : intersection point in the object's UV coordinates (THREE.Vector2)
+					*/
+					tanPlane.visible = true;
+					circle.visible = true;
+				}
+
+			}
+
+			function drawTangents(a,b){
+				tanPlane.visible = true;
+				circle.visible = true;
+				var a = math.parse(params.coordIn.substr(0,params.coordIn.indexOf(','))).evaluate();
+				var b = math.parse(params.coordIn.substr(params.coordIn.indexOf(',')+1)).evaluate();
+				var v = calculateTan(a,b);
+				circle.position.copy(v[1]);
+				tanOut.setValue(v[0]);
+
+				//updates tangent plane
+				tanPlane.geometry.vertices[0].x = a-1;
+				tanPlane.geometry.vertices[0].y = b-1;
+				tanPlane.geometry.vertices[0].z = -math.parse(tanFunction).evaluate({ x: a-1, y: b-1 });
+
+				tanPlane.geometry.vertices[1].x = a+1;
+				tanPlane.geometry.vertices[1].y = b-1;
+				tanPlane.geometry.vertices[1].z = -math.parse(tanFunction).evaluate({ x: a+1, y: b-1 });
+
+				tanPlane.geometry.vertices[3].x = a+1;
+				tanPlane.geometry.vertices[3].y = b+1;
+				tanPlane.geometry.vertices[3].z = -math.parse(tanFunction).evaluate({ x: a+1, y: b+1 });
+
+				tanPlane.geometry.vertices[2].x = a-1;
+				tanPlane.geometry.vertices[2].y = b+1;
+				tanPlane.geometry.vertices[2].z = -math.parse(tanFunction).evaluate({ x: a-1, y: b+1 });
+
+				tanPlane.geometry.verticesNeedUpdate=true;
 			}
 
 		</script>
