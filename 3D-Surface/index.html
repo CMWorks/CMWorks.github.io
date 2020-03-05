@@ -43,10 +43,11 @@
 				resolution: 10,
 				autoUpdate: false,
 				zScale: 1,
-				tangents: false,
 				update: update,
 				coordIn: "0,0",
 				tanOut: "",
+				showC1C2: false,
+				tangents: false,
 				Clear: function(){tanPlane.visible = false;circle.visible = false;}
 			};
 
@@ -61,7 +62,7 @@
 			pretty.innerHTML = '$$' + math.parse(params.function).toTex({parenthesis: parenthesis}) + '$$';
 
 			//intersections
-			//Note: plane x is point x, plane y is point z, plane z is point y
+			//Note: b = pointZ, c = pointY, z = -f(a,b)
 			var raycaster, mouse = { x : 0, y : 0 };
 			var circle;
 
@@ -69,6 +70,8 @@
 			var tanLineX, tanLineY, tanPlane;
 			var tanFunction;
 			var tanFolder;
+			var showLines;
+			var C1, C2;
 			var r = 2;
 
 
@@ -84,9 +87,13 @@
 					plane.geometry.faces[i].vertexColors[1] = new THREE.Color( 0x000000 );
 					plane.geometry.faces[i].vertexColors[2] = new THREE.Color( 0x000000 );
 				}
-				let fun = params.function;
-				compiledFunction = math.parse(fun).compile();
+				tanPlane.visible = false;circle.visible = false;
+				let fun = params.function.split("ln").join("log");
+				compiledFunction = math.parse(fun);
 				updatePlane();
+				CLineHide();
+				showLines.__checkbox.checked = false;
+				showLines.setValue(false);
 			}
 
 			function changeTexture(){
@@ -106,13 +113,50 @@
 			 }
 
 			 function calculateTan(a,b){
-				 c = math.parse(params.function).evaluate({x: a, y: b});
-				 let dx = math.derivative(params.function, "x").evaluate({x: a, y: b});
-				 let dy = math.derivative(params.function, "y").evaluate({x: a, y: b});
+				 c = compiledFunction.evaluate({x: a, y: b});
+				 let dx = math.derivative(compiledFunction, "x").evaluate({x: a, y: b});
+				 let dy = math.derivative(compiledFunction, "y").evaluate({x: a, y: b});
 				 let cc = math.round(c-dx*a-dy*b,r);
-				 tanFunction = math.format(math.simplify(math.parse(math.round(dx,r)+"x+"+math.round(dy,r)+"y+"+math.round(c-dx*a-dy*b,r)), {}, {exactFractions: false}));
+				 tanFunction = math.format(math.simplify(math.parse(math.round(dx,r)+"*x+"+math.round(dy,r)+"*y+"+math.round(c-dx*a-dy*b,r)), {}, {exactFractions: false}));
+				 tanFunction = tanFunction.split(" ").join("");
+				 tanFunction = tanFunction.split("+-").join("-");
+				 tanFunction = tanFunction.split("-+").join("-");
 				 //tanFunction = math.format(math.simplify(math.parse(tanFunction)));
 				 return [tanFunction, new THREE.Vector3(a,c,b)];
+			 }
+
+			 function CLine(a,b){
+				 let res = 50, points = [];
+				 scene.remove(C1);scene.remove(C2);
+				 var material = new THREE.LineBasicMaterial( { color: 0x0000ff } );
+				 for (var i = -params.size/2; i <= params.size/2; i+=1/res) {
+					points.push( new THREE.Vector3(i,compiledFunction.evaluate({ x: i, y: b }), b) );
+				 }
+				 var geometry = new THREE.BufferGeometry().setFromPoints( points );
+
+				 C1 = new THREE.Line( geometry, material );
+
+				 points = [];
+				 for (var i = -params.size/2; i <= params.size/2; i+=1/res) {
+				 	points.push( new THREE.Vector3(a,compiledFunction.evaluate({ x: a, y: i }), i) );
+				 }
+				 geometry = new THREE.BufferGeometry().setFromPoints( points );
+
+				 C2 = new THREE.Line( geometry, material );
+				 C1.visible = plane.material.wireframe; C2.visible = plane.material.wireframe;
+				 scene.add(C1);scene.add(C2);
+			 }
+
+			 function CLineHide(){
+				 scene.remove(C1);scene.remove(C2);
+				var material = new THREE.LineBasicMaterial( { color: 0x0000ff } );
+ 				var points = [];
+ 				points.push( new THREE.Vector3( 0, 0, 0 ) );
+ 				points.push( new THREE.Vector3( 0, 0, 0 ) );
+ 				points.push( new THREE.Vector3( 0, 0, 0 ) );
+ 				var geometry = new THREE.BufferGeometry().setFromPoints( points );
+ 				C1 = new THREE.Line( geometry, material );C2 = new THREE.Line( geometry, material );
+ 				C1.visible = false; C2.visible = false;
 			 }
 
 			 /**
@@ -297,6 +341,16 @@
 				tanPlane.rotateX(math.pi/2);
 				scene.add(tanPlane);
 
+				//adds C1 and C2
+				var material = new THREE.LineBasicMaterial( { color: 0x0000ff } );
+				var points = [];
+				points.push( new THREE.Vector3( 0, 0, 0 ) );
+				points.push( new THREE.Vector3( 0, 0, 0 ) );
+				points.push( new THREE.Vector3( 0, 0, 0 ) );
+				var geometry = new THREE.BufferGeometry().setFromPoints( points );
+				C1 = new THREE.Line( geometry, material );C2 = new THREE.Line( geometry, material );
+				C1.visible = false; C2.visible = false;
+
 				//grid
 				xaxis = new THREE.Mesh(new THREE.BoxGeometry( params.size,.1,.1 ), new THREE.MeshBasicMaterial( {color: 0xff0000} ));
 				yaxis = new THREE.Mesh(new THREE.BoxGeometry( .1,params.size,.1 ), new THREE.MeshBasicMaterial( {color: 0x0000ff} ));
@@ -356,14 +410,22 @@
 				gui.add( params, 'resolution' ).min(1).max(1000).step(1);
 				gui.add( params, 'zScale' ).min(0).max(2).name("Z-Scale");
 				gui.add( params, 'update' );
+
+				//tanFolder
 				tanFolder = gui.addFolder("Tangent");
 				coordIn = tanFolder.add(params, "coordIn").name("Coordinate x,y").onFinishChange(function(){
 					drawTangents();
 				});
-				tanFolder.add( params, 'tangents').name("Auto Display");
 				tanOut = tanFolder.add(params, "tanOut").name("z=");
-				document.getElementsByTagName("input")[7].disabled = true;
+				document.getElementsByTagName("input")[6].disabled = true;
+				showLines = tanFolder.add( params, 'showC1C2').name("Show C1 & C2").onFinishChange(function(){
+					plane.material.wireframe = params.showC1C2;
+					C1.visible = plane.material.wireframe;
+ 				 	C2.visible = plane.material.wireframe;
+				});
+				tanFolder.add( params, 'tangents').name("Auto Display");
 				tanFolder.add(params, "Clear");
+
 				update();
 			}
 
@@ -396,9 +458,12 @@
 				let node = null
 				let fun = params.function;
 				try {
-					// parse the expression
-					node = math.simplify(math.parse(fun));
-					fn.setValue(node.toString());
+					// parse the expression and simplifies it
+					// node = math.simplify(math.parse(fun));
+					// fn.setValue(node.toString());
+
+					//regular parse
+					node = math.parse(fun);
 				}
 				catch (err) {}
 
@@ -466,6 +531,9 @@
 					*/
 					tanPlane.visible = true;
 					circle.visible = true;
+
+					//updates tangent curves
+					CLine(a, b);
 				}
 
 			}
@@ -473,8 +541,8 @@
 			function drawTangents(a,b){
 				tanPlane.visible = true;
 				circle.visible = true;
-				var a = math.parse(params.coordIn.substr(0,params.coordIn.indexOf(','))).evaluate();
-				var b = math.parse(params.coordIn.substr(params.coordIn.indexOf(',')+1)).evaluate();
+				var a = math.parse(params.coordIn.substr(0,params.coordIn.indexOf(',')).split("ln").join("log")).evaluate();
+				var b = math.parse(params.coordIn.substr(params.coordIn.indexOf(',')+1).split("ln").join("log")).evaluate();
 				var v = calculateTan(a,b);
 				circle.position.copy(v[1]);
 				tanOut.setValue(v[0]);
@@ -497,6 +565,9 @@
 				tanPlane.geometry.vertices[2].z = -math.parse(tanFunction).evaluate({ x: a-1, y: b+1 });
 
 				tanPlane.geometry.verticesNeedUpdate=true;
+
+				//updates tangent curves
+				CLine(a, b);
 			}
 
 		</script>
