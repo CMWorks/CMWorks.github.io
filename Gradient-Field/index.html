@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Gradient Field</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<style>
+      canvas {
+        position: absolute;
+      }
+			/* body {
+				background-color: #cce0ff;
+				color: #000;
+			} */
+			/* a {
+				color: #080;
+			} */
+
+		</style>
+		<script src='https://cmworks.github.io/3D-Surface/build/dat.gui.min.js'></script>
+		<script src='https://cmworks.github.io/3D-Surface/build/math.min.js'></script>
+		<script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.3/MathJax.js?config=TeX-AMS-MML_HTMLorMML.js'></script>
+		<script src='https://cmworks.github.io/3D-Surface/build/stats.min.js'></script>
+    <!-- <script src="p5.min.js"></script> -->
+    <script src="two.min.js"></script>
+  </head>
+  <body>
+    <div id="pretty"></div>
+    <script>
+
+var minValue = 10000, maxValue = -100000;
+var xMin=-1, xMax=6;
+var yMin=-1, yMax=6;
+var params = {
+ function: "cos(x)+cos(y)",
+ domain: "[-1,6]",
+ range: "[-1,6]",
+ vectorScaling: true,
+ vectorDencity: 25,
+ fill: false
+};
+
+// Latex output
+let options = {parenthesis: 'keep', implicit: 'hide'};
+const pretty = document.getElementById('pretty');
+let parenthesis = 'keep';
+let implicit = 'hide';
+pretty.innerHTML = '$$' + math.parse(params.function).toTex({parenthesis: parenthesis}) + '$$';
+
+var partialX = math.derivative(params.function, "x");
+var partialY = math.derivative(params.function, "y");
+var two = new Two({ fullscreen: true, autostart: true }).appendTo(document.body);
+//adds groups
+var vecterField, grid, filled;
+init();
+
+function init(){
+  // Don't forget to tell two to render everything
+  // to the screen
+
+
+  var gui = new dat.GUI();
+  gui.add( params, 'function' ).name("f(x,y)=").onFinishChange(function(){
+    partialX = math.derivative(params.function.split("ln").join("log"), "x");
+    partialY = math.derivative(params.function.split("ln").join("log"), "y");
+    draw();
+  }).onChange(function(value) {
+    print();
+  });
+
+  gui.add( params, 'domain' ).name("Domain").onFinishChange(function(){
+    draw();
+  });
+  gui.add( params, 'range' ).name("Range").onFinishChange(function(){
+    draw();
+  });
+  gui.add( params, 'vectorDencity' ).name("Vector Dencity").min(1).max(100).step(1).onFinishChange(function(){
+    draw();
+  });
+  gui.add( params, 'vectorScaling' ).name("Vector Scaling").onFinishChange(function(){
+    draw();
+  });
+  gui.add( params, 'fill' ).name("Fill").onFinishChange(function(){
+    draw();
+  });
+  draw();
+  two.bind('resize', draw);
+  two.update();
+}
+
+function draw(){
+  two.clear();
+  xMin = math.evaluate(params.domain.substring(params.domain.indexOf("[")+1,params.domain.indexOf(",")).split("ln").join("log"))
+  xMax = math.evaluate(params.domain.substring(params.domain.indexOf(",")+1,params.domain.indexOf("]")).split("ln").join("log"))
+  yMin = math.evaluate(params.range.substring(params.range.indexOf("[")+1,params.range.indexOf(",")).split("ln").join("log"))
+  yMax = math.evaluate(params.range.substring(params.range.indexOf(",")+1,params.range.indexOf("]")).split("ln").join("log"))
+  if (params.fill) {
+    var n = 0;
+    var dt = 20;
+    values = [];
+    filled = two.makeGroup();
+    minValue = 10000, maxValue = -100000;
+    for (var y1 = dt/2; y1 < two.height; y1+=dt) {
+      for (var x1 = dt/2; x1 < two.width; x1+=dt) {
+        var gX = map(x1,0,two.width,xMin,xMax);
+        var gY = map(y1,0,two.height,yMax,yMin);
+        a = partialX.evaluate({x:gX, y:gY});
+        b = partialY.evaluate({x:gX, y:gY});
+        values[n] = [x1,y1,Math.sqrt(a*a+b*b)];
+        len = values[n][2];
+        if (isFinite(len)) {
+          if (len > maxValue) {
+            maxValue = len;
+          }else if (len < minValue) {
+            minValue = len;
+          }
+        }
+        n++;
+      }
+    }
+    for (var i = 0; i < values.length; i++) {
+      var p = two.makeRectangle(values[i][0],values[i][1],dt,dt)
+      var c = map(values[i][2],minValue,maxValue,240,0);
+      p.stroke = 'hsl('+c+',75%,45%)';
+      p.fill = 'hsl('+c+',75%,50%)';
+      filled.add(p);
+    }
+  }else {
+    drawGrid();
+    vecterField = two.makeGroup();
+    var step = (xMax-xMin)/(params.vectorDencity);
+    var n = 0;
+    values = [];
+    minValue = 10000, maxValue = -100000;
+    for (var y1 = yMin; y1 < yMax; y1+=step) {
+      for (var x1 = xMin; x1 < xMax; x1+=step) {
+        a = partialX.evaluate({x:x1, y:y1});
+        b = partialY.evaluate({x:x1, y:y1});
+        values[n] = [x1,y1,new Two.Vector(a,b)];
+        len = values[n][2].length();
+        if (isFinite(len)) {
+          if (len > maxValue) {
+            maxValue = len;
+          }else if (len < minValue) {
+            minValue = len;
+          }
+        }
+        n++;
+      }
+    }
+    for (var i = 0; i < values.length; i++) {
+      vector(values[i][0],values[i][1],values[i][2])
+    }
+  }
+}
+
+function drawGrid(){
+  var lineX = two.makeLine(map(xMin,xMin,xMax,0,two.width),map(0,yMin,yMax,two.height,0),map(xMax,xMin,xMax,0,two.width),map(0,yMin,yMax,two.height,0));
+  var lineY = two.makeLine(map(0,xMin,xMax,0,two.width),map(yMin,yMin,yMax,two.height,0),map(0,xMin,xMax,0,two.width),map(yMax,yMin,yMax,two.height,0));
+  grid = two.makeGroup(lineX, lineY);
+  vecterField = two.makeGroup();
+}
+
+function vector(a, b, v){
+  var size = map(v.length(),minValue,maxValue,240,0);
+  var len;
+  if (params.vectorScaling) {
+    len = map(size,240,0,((xMax-xMin)+(yMax-yMin))/400,((xMax-xMin)+(yMax-yMin))/100);
+  }else {
+    len = ((xMax-xMin)+(yMax-yMin))/140;
+  }
+  v.setLength(len);
+  // v.normalize();
+  let v1 = two.makeArrow(map(a,xMin,xMax,0,two.width),map(b,yMin,yMax,two.height,0),map(a+v.x,xMin,xMax,0,two.width),map(b+v.y,yMin,yMax,two.height,0),50*len);
+  v1.stroke = 'hsl('+size+',75%,50%)';
+  vecterField.add(v1);
+}
+
+function print () {
+  let node = null
+  let fun = params.function;
+  try {
+    // parse the expression and simplifies it
+    // node = math.simplify(math.parse(fun));
+    // fn.setValue(node.toString());
+
+    //regular parse
+    node = math.parse(fun);
+  }
+  catch (err) {}
+
+  try {
+    // export the expression to LaTeX
+    node = math.parse("f(x,y)=="+node.toString());
+    const latex = node ? node.toTex({parenthesis: parenthesis, implicit: implicit}) : ''
+
+    // display and re-render the expression
+    const elem = MathJax.Hub.getAllJax('pretty')[0]
+    MathJax.Hub.Queue(['Text', elem, latex])
+  }
+  catch (err) {}
+}
+
+function map(n, start1, stop1, start2, stop2, withinBounds){
+  const newval = (n - start1) / (stop1 - start1) * (stop2 - start2) + start2;
+  if (!withinBounds) {
+    return newval;
+  }
+  if (start2 < stop2) {
+    return this.constrain(newval, start2, stop2);
+  } else {
+    return this.constrain(newval, stop2, start2);
+  }
+}
+
+
+    </script>
+  </body>
+</html>
