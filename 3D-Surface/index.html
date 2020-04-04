@@ -36,11 +36,11 @@
 			 var texture = 0;
 			 var compiledFunction;
 			 var params = {
-				function: "x",
+				function: "cos(x)+sin(cos(y)+x)",
 				texture: changeTexture,
 				color: "#000000",
-				size: 5,
-				resolution: 10,
+				rRange: "[-5,5] × [-5,5]",
+				resolution: 25,
 				autoUpdate: false,
 				zScale: 1,
 				update: update,
@@ -48,11 +48,19 @@
 				tanOut: "",
 				showC1C2: false,
 				tangents: false,
-				Clear: function(){tanPlane.visible = false;circle.visible = false;}
+				Clear: function(){tanPlane.visible = false;circle.visible = false;},
+				n: 2,
+				approximate: false,
+				volume: "0",
+				absVolume: "0",
+				average: "0",
+				upDT: function(){if (params.approximate){clearIntegralApprox(); drawIntegralApprox();}},
 			};
 
 			//grid
 			var xaxis, yaxis, zaxis;
+			var xMin, xMax, yMin, yMax;
+			var planeWidth, planeHeight;
 
 			// Latex output
 			let options = {parenthesis: 'keep', implicit: 'hide'};
@@ -74,12 +82,23 @@
 			var C1, C2;
 			var r = 2;
 
+			//Volume
+			var intFolder;
+			var subBoxs = [];
+			var subBoxsPosMaterial, subBoxsNegMaterial;
+			var volume;
 
 			function update(){
 				min = 0;
 				max = 0;
+				xMin = math.evaluate(params.rRange.substring(params.rRange.indexOf("[")+1,params.rRange.indexOf(",")).split("ln").join("log"))
+			  xMax = math.evaluate(params.rRange.substring(params.rRange.indexOf(",")+1,params.rRange.indexOf("]")).split("ln").join("log"))
+			  yMin = math.evaluate(params.rRange.substring(params.rRange.lastIndexOf("[")+1,params.rRange.lastIndexOf(",")).split("ln").join("log"))
+			  yMax = math.evaluate(params.rRange.substring(params.rRange.lastIndexOf(",")+1,params.rRange.lastIndexOf("]")).split("ln").join("log"))
+				planeWidth = xMax - xMin;
+				planeHeight = yMax - yMin;
 				scene.remove(plane);
-				plane = new THREE.Mesh( new THREE.PlaneGeometry(params.size,params.size,params.resolution,params.resolution), planeMat );
+				plane = new THREE.Mesh( new THREE.PlaneGeometry(planeWidth,planeHeight,params.resolution,params.resolution), planeMat );
 				plane.rotation.x = (-Math.PI/2);
 				scene.add(plane);
 				for (var i = 0; i < plane.geometry.faces.length; i++) {
@@ -92,8 +111,12 @@
 				compiledFunction = math.parse(fun);
 				updatePlane();
 				CLineHide();
+				clearIntegralApprox();
 				showLines.__checkbox.checked = false;
 				showLines.setValue(false);
+				if (params.approximate) {
+					drawIntegralApprox();
+				}
 			}
 
 			function changeTexture(){
@@ -117,7 +140,7 @@
 				 let dx = math.derivative(compiledFunction, "x").evaluate({x: a, y: b});
 				 let dy = math.derivative(compiledFunction, "y").evaluate({x: a, y: b});
 				 let cc = math.round(c-dx*a-dy*b,r);
-				 tanFunction = math.format(math.simplify(math.parse(math.round(dx,r)+"*x+"+math.round(dy,r)+"*y+"+math.round(c-dx*a-dy*b,r)), {}, {exactFractions: false}));
+				 tanFunction = math.format(math.simplify(math.parse(math.round(dx,r)+"*x+"+math.round(dy,r)+"*y+"+cc), {}, {exactFractions: false}));
 				 tanFunction = tanFunction.split(" ").join("");
 				 tanFunction = tanFunction.split("+-").join("-");
 				 tanFunction = tanFunction.split("-+").join("-");
@@ -201,8 +224,26 @@
 			}
 
 			function updatePlane(){
+				// total vertices for a resolution of n is n^2+2*n+1
+				//sets vertices to points based on bounded range R
+				var n = 0;
+				var dx = planeWidth/params.resolution;
+				var dy = planeHeight/params.resolution;
+				for (var y = yMin; y <= yMax+dy/2; y+=dy) {	//offseted by dy to acount for rounding error
+					for (var x = xMin; x <= xMax+dx/2; x+=dx) {
+						if (n < params.resolution*params.resolution+2*params.resolution+1) {
+							plane.geometry.vertices[n].x = x;
+							plane.geometry.vertices[n].y = y;
+							n++;
+						}else {
+							break;
+						}
+					}
+				}
+
+				//sets vertices to actual values
 				for (var i = 0; i < plane.geometry.vertices.length; i++) {
-					let newZ = f(plane.geometry.vertices[i].x, -plane.geometry.vertices[i].y)*params.zScale;
+					let newZ = f(plane.geometry.vertices[i].x, plane.geometry.vertices[i].y)*params.zScale;
 					plane.geometry.vertices[i].z = newZ;
 					if (isFinite(newZ)) {
 						if (newZ > max) {
@@ -352,15 +393,20 @@
 				C1.visible = false; C2.visible = false;
 
 				//grid
-				xaxis = new THREE.Mesh(new THREE.BoxGeometry( params.size,.1,.1 ), new THREE.MeshBasicMaterial( {color: 0xff0000} ));
-				yaxis = new THREE.Mesh(new THREE.BoxGeometry( .1,params.size,.1 ), new THREE.MeshBasicMaterial( {color: 0x0000ff} ));
-				zaxis = new THREE.Mesh(new THREE.BoxGeometry( .1,.1,params.size ), new THREE.MeshBasicMaterial( {color: 0x00ff00} ));
-				xaxis.geometry.translate(params.size/2,0,0)
-				yaxis.geometry.translate(0,params.size/2,0)
-				zaxis.geometry.translate(0,0,params.size/2)
+				var s = 5;
+				xaxis = new THREE.Mesh(new THREE.BoxGeometry( s,.05,.05 ), new THREE.MeshBasicMaterial( {color: 0xff0000} ));
+				zaxis = new THREE.Mesh(new THREE.BoxGeometry( .05,s,.05 ), new THREE.MeshBasicMaterial( {color: 0x0000ff} ));
+				yaxis = new THREE.Mesh(new THREE.BoxGeometry( .05,.05,s ), new THREE.MeshBasicMaterial( {color: 0x00ff00} ));
+				xaxis.geometry.translate(s/2,0,0)
+				zaxis.geometry.translate(0,s/2,0)
+				yaxis.geometry.translate(0,0,-s/2)
 				scene.add(xaxis);
 				scene.add(yaxis);
 				scene.add(zaxis);
+
+				//subBoxes material
+				subBoxsPosMaterial = new THREE.MeshPhongMaterial( {color: 0x00ff00, side: THREE.DoubleSide, transparent: true, opacity: .5} );
+				subBoxsNegMaterial = new THREE.MeshPhongMaterial( {color: 0x00fff0, side: THREE.DoubleSide, transparent: true, opacity: .5} );
 
 				// renderer
 
@@ -406,7 +452,9 @@
 				gui.addColor(params, 'color').onChange(function(value) {
 					colorPlane();
 				});
-				gui.add( params, 'size' ).min(0).max(15).step(1);
+				gui.add( params, 'rRange' ).name("R = ").onFinishChange(function(){
+			    update();
+			  });
 				gui.add( params, 'resolution' ).min(1).max(1000).step(1);
 				gui.add( params, 'zScale' ).min(0).max(2).name("Z-Scale");
 				gui.add( params, 'update' );
@@ -425,6 +473,25 @@
 				});
 				tanFolder.add( params, 'tangents').name("Auto Display");
 				tanFolder.add(params, "Clear");
+
+				//Integral folder
+				intFolder = gui.addFolder("Integral");
+				intFolder.add(params, "n").min(2).max(100).step(1);
+				intFolder.add(params, "approximate").name("Approx Volume").onFinishChange(function(){
+					if (params.approximate) {
+						drawIntegralApprox();
+					}else {
+						clearIntegralApprox();
+					}
+				});
+				intFolder.add(params, "volume").name("Volume: ");
+				document.getElementsByTagName("input")[11].disabled = true;
+				intFolder.add(params, "absVolume").name("Abs Volume: ");
+				document.getElementsByTagName("input")[12].disabled = true;
+				intFolder.add(params, "average").name("Average Value: ");
+				document.getElementsByTagName("input")[13].disabled = true;
+
+				intFolder.add(params,"upDT").name("Update Volume");
 
 				update();
 			}
@@ -495,27 +562,27 @@
 				//3. compute intersections
 				var intersects = raycaster.intersectObjects( [plane] );
 				if (intersects.length > 0) {
-					let a = intersects[0].point.x, b = intersects[0].point.z, c = intersects[0].point.y;
+					let a = intersects[0].point.x, b = -intersects[0].point.z, c = intersects[0].point.y;
 					let v = calculateTan(a,b);
-					circle.position.copy(v[1]);
+					circle.position.set(v[1].x,v[1].y,-v[1].z);
 					tanOut.setValue(v[0]);
 					coordIn.setValue(math.round(a,r)+","+math.round(b,r))
 
 					//updates tangent plane
 					tanPlane.geometry.vertices[0].x = a-1;
-					tanPlane.geometry.vertices[0].y = b-1;
+					tanPlane.geometry.vertices[0].y = -b+1;
 					tanPlane.geometry.vertices[0].z = -math.parse(tanFunction).evaluate({ x: a-1, y: b-1 });
 
 					tanPlane.geometry.vertices[1].x = a+1;
-					tanPlane.geometry.vertices[1].y = b-1;
+					tanPlane.geometry.vertices[1].y = -b+1;
 					tanPlane.geometry.vertices[1].z = -math.parse(tanFunction).evaluate({ x: a+1, y: b-1 });
 
 					tanPlane.geometry.vertices[3].x = a+1;
-					tanPlane.geometry.vertices[3].y = b+1;
+					tanPlane.geometry.vertices[3].y = -b-1;
 					tanPlane.geometry.vertices[3].z = -math.parse(tanFunction).evaluate({ x: a+1, y: b+1 });
 
 					tanPlane.geometry.vertices[2].x = a-1;
-					tanPlane.geometry.vertices[2].y = b+1;
+					tanPlane.geometry.vertices[2].y = -b-1;
 					tanPlane.geometry.vertices[2].z = -math.parse(tanFunction).evaluate({ x: a-1, y: b+1 });
 
 					tanPlane.geometry.verticesNeedUpdate=true;
@@ -544,30 +611,73 @@
 				var a = math.parse(params.coordIn.substr(0,params.coordIn.indexOf(',')).split("ln").join("log")).evaluate();
 				var b = math.parse(params.coordIn.substr(params.coordIn.indexOf(',')+1).split("ln").join("log")).evaluate();
 				var v = calculateTan(a,b);
-				circle.position.copy(v[1]);
+				circle.position.set(v[1].x,v[1].y,-v[1].z);
 				tanOut.setValue(v[0]);
 
 				//updates tangent plane
 				tanPlane.geometry.vertices[0].x = a-1;
-				tanPlane.geometry.vertices[0].y = b-1;
+				tanPlane.geometry.vertices[0].y = -b+1;
 				tanPlane.geometry.vertices[0].z = -math.parse(tanFunction).evaluate({ x: a-1, y: b-1 });
 
 				tanPlane.geometry.vertices[1].x = a+1;
-				tanPlane.geometry.vertices[1].y = b-1;
+				tanPlane.geometry.vertices[1].y = -b+1;
 				tanPlane.geometry.vertices[1].z = -math.parse(tanFunction).evaluate({ x: a+1, y: b-1 });
 
 				tanPlane.geometry.vertices[3].x = a+1;
-				tanPlane.geometry.vertices[3].y = b+1;
+				tanPlane.geometry.vertices[3].y = -b-1;
 				tanPlane.geometry.vertices[3].z = -math.parse(tanFunction).evaluate({ x: a+1, y: b+1 });
 
 				tanPlane.geometry.vertices[2].x = a-1;
-				tanPlane.geometry.vertices[2].y = b+1;
+				tanPlane.geometry.vertices[2].y = -b-1;
 				tanPlane.geometry.vertices[2].z = -math.parse(tanFunction).evaluate({ x: a-1, y: b+1 });
 
 				tanPlane.geometry.verticesNeedUpdate=true;
 
 				//updates tangent curves
 				CLine(a, b);
+			}
+
+			function drawIntegralApprox(){
+				subBoxs = [];
+				dx = planeWidth/params.n;
+				dy = planeHeight/params.n;
+				//left point approx
+				volume = 0;
+				absVol = 0;
+				i = 0;
+				for (var y = yMin; y < yMax; y+=dy) {
+					for (var x = xMin; x < xMax; x+=dx) {
+						//point (x,z,-y)
+						var z = f(x,y)*params.zScale;
+						if (z >=0 ) {
+							subBoxs[i] = new THREE.Mesh(new THREE.BoxGeometry( dx, z ,dy ), subBoxsPosMaterial);
+						}else {
+							subBoxs[i] = new THREE.Mesh(new THREE.BoxGeometry( dx, z ,dy ), subBoxsNegMaterial);
+						}
+						subBoxs[i].translateX(x);
+						subBoxs[i].translateZ(-y);
+						subBoxs[i].translateY(z/2);
+						volume += dx*dy*z;
+						absVol += Math.abs(dx*dy*z);
+						i++;
+					}
+				}
+				params.volume = ""+math.round(volume,r+2);
+				params.absVolume = ""+math.round(absVol,r+2);
+				params.average = ""+math.round(volume/(planeWidth*planeHeight),r+2)
+				intFolder.updateDisplay();
+				planeMat.visible = false;
+				for (var i = 0; i < subBoxs.length; i++) {
+					scene.add(subBoxs[i]);
+				}
+			}
+
+			function clearIntegralApprox(){
+				planeMat.visible = true;
+				for (var i = 0; i < subBoxs.length; i++) {
+					scene.remove(subBoxs[i]);
+				}
+
 			}
 
 		</script>
