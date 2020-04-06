@@ -45,11 +45,12 @@
 				zScale: 1,
 				update: update,
 				coordIn: "0,0",
-				tanOut: "",
+				tanOut: "Bottem Left",
 				showC1C2: false,
 				tangents: false,
 				Clear: function(){tanPlane.visible = false;circle.visible = false;},
 				n: 2,
+				method: "",
 				approximate: false,
 				volume: "0",
 				absVolume: "0",
@@ -477,6 +478,7 @@
 				//Integral folder
 				intFolder = gui.addFolder("Integral");
 				intFolder.add(params, "n").min(2).max(100).step(1);
+				intFolder.add(params, "method",["Bottem Left","Top Right","Midpoint"]).name("Method");
 				intFolder.add(params, "approximate").name("Approx Volume").onFinishChange(function(){
 					if (params.approximate) {
 						drawIntegralApprox();
@@ -648,7 +650,15 @@
 				for (var y = yMin; y < yMax; y+=dy) {
 					for (var x = xMin; x < xMax; x+=dx) {
 						//point (x,z,-y)
-						var z = f(x,y)*params.zScale;
+						if (params.method == "Bottem Left") {
+							var z = f(x,y)*params.zScale;
+						}else if (params.method == "Top Right") {
+							var z = f(x+dx,y+dy)*params.zScale;
+						}else if (params.method == "Midpoint") {
+							var z = f(x+dx/2,y+dy/2)*params.zScale;
+						}else {
+							var z = 0;
+						}
 						if (z >=0 ) {
 							subBoxs[i] = new THREE.Mesh(new THREE.BoxGeometry( dx, z ,dy ), subBoxsPosMaterial);
 						}else {
