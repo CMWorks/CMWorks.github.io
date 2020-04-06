@@ -477,7 +477,7 @@
 
 				//Integral folder
 				intFolder = gui.addFolder("Integral");
-				intFolder.add(params, "n").min(2).max(100).step(1);
+				intFolder.add(params, "n").name("m,n = ").min(2).max(100).step(1);
 				intFolder.add(params, "method",["Bottem Left","Top Right","Midpoint"]).name("Method");
 				intFolder.add(params, "approximate").name("Approx Volume").onFinishChange(function(){
 					if (params.approximate) {
