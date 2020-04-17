@@ -6,11 +6,14 @@
 		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
 		<style>
 			body {
-				background-color: #cce0ff;
-				color: #000;
+				background-color: #FFFFFF;
+				color: #202020;
 			}
 			a {
 				color: #080;
+			}
+			canvas {
+    		display: block; /* fix necessary to remove space at bottom of canvas */
 			}
 
 		</style>
@@ -26,30 +29,43 @@
 
 		<div id="pretty"></div>
 		<script>
-			 var container, stats, fn;
-			 var camera, scene, renderer;
-			 var plane;
-			 var planeMat = new THREE.MeshStandardMaterial({ vertexColors: THREE.VertexColors, side: THREE.DoubleSide });
-			 var max = 0, min = 0;
-			 var width = window.innerWidth-25, height = window.innerHeight-65;
-			 var colorRange = 240; // 240 for blue to red
-			 var texture = 0;
-			 var parsedFunction;
-			 var compiledFunction;
-			 var params = {
-				function: "cos(x)+sin(cos(y)+x)",
+			// (x,z,-y)
+			var container, stats, fn;
+			var camera, scene, renderer;
+			var plane, solidMesh;
+			var planeMat = new THREE.MeshStandardMaterial({ vertexColors: THREE.VertexColors, side: THREE.DoubleSide });
+			var solidMaterial = new THREE.MeshPhongMaterial( {
+				color: 0xaaaaaa, flatShading: true,
+				side: THREE.DoubleSide,
+			} );
+			var lineMat = new THREE.LineBasicMaterial( { color: 0x0000ff } );
+			var gridMat = new THREE.LineBasicMaterial( { color: 0xA9A9A9 } );
+			var max = 0, min = 0;
+			var xOff = 10, yOff = 16;
+			var width = window.innerWidth-xOff, height = window.innerHeight-yOff;
+			var light;
+			var colorRange = 240; // 240 for blue to red
+			var texture = 0;
+			var parsedFunction, parsedWFunction;
+			var compiledFunction, compiledWFunction;
+			var isImplicit = false;
+			var isVector = false;
+			var params = {
+				// Main
+				function: "z=x^2+y^2",
 				texture: changeTexture,
 				color: "#000000",
-				rRange: "[-5,5] × [-5,5]",
-				resolution: 25,
-				autoUpdate: false,
-				zScale: 1,
+				rRange: "[-5,5] × [-5,5] × [-5,5]",
+				resolution: 50,
+				contourPlot: false,
 				update: update,
-				coordIn: "0,0",
-				tanOut: "Bottem Left",
+				// Tangent
+				coordIn: "0,0,0",
+				tanOut: "",
 				showC1C2: false,
 				tangents: false,
 				Clear: function(){tanPlane.visible = false;circle.visible = false;},
+				// Integral
 				n: 2,
 				method: "",
 				approximate: false,
@@ -58,11 +74,17 @@
 				average: "0",
 				upDT: function(){if (params.approximate){clearIntegralApprox(); drawIntegralApprox();}},
 				toInfinit: function(){infinitIntegralApprox()},
+				// Fields
+				vectorEq: "<y^2-y,x^2-y>",//"<y^2-z,x^2-y,z^2-x>",
+				isGradient: false,
+				vectorScaling: false,
+				doVectorField: false,
+				vectorUpdate: function(){clearVectors();if (params.doVectorField) {drawVectors();}},
 			};
 
 			//grid
 			var xaxis, yaxis, zaxis;
-			var xMin, xMax, yMin, yMax;
+			var xMin, xMax, yMin, yMax, zMin = -5, zMax=5;
 			var planeWidth, planeHeight;
 
 			// Latex output
@@ -71,6 +93,9 @@
 			let parenthesis = 'keep';
 			let implicit = 'hide';
 			pretty.innerHTML = '$$' + math.parse(params.function).toTex({parenthesis: parenthesis}) + '$$';
+			pretty.style.position = 'absolute';
+			pretty.style.top = 0 + 'px';
+			pretty.style.left = 100 + 'px';
 
 			//intersections
 			//Note: b = pointZ, c = pointY, z = -f(a,b)
@@ -91,35 +116,91 @@
 			var subBoxsPosMaterial, subBoxsNegMaterial;
 			var volume;
 
+			//Contour Plot
+			var levels = [];
+
+			//vector and gradient field
+			var fieldFolder;
+			var arrows = [];
+
 			function update(){
 				min = 0;
 				max = 0;
-				xMin = math.evaluate(params.rRange.substring(params.rRange.indexOf("[")+1,params.rRange.indexOf(",")).split("ln").join("log"))
-			  xMax = math.evaluate(params.rRange.substring(params.rRange.indexOf(",")+1,params.rRange.indexOf("]")).split("ln").join("log"))
-			  yMin = math.evaluate(params.rRange.substring(params.rRange.lastIndexOf("[")+1,params.rRange.lastIndexOf(",")).split("ln").join("log"))
-			  yMax = math.evaluate(params.rRange.substring(params.rRange.lastIndexOf(",")+1,params.rRange.lastIndexOf("]")).split("ln").join("log"))
+				var aR = params.rRange;
+				var xR = aR.substring(aR.indexOf("["),aR.indexOf("]")+1);
+				aR = aR.substring(aR.indexOf("]")+1)
+				var yR = aR.substring(aR.indexOf("["),aR.indexOf("]")+1);
+				aR = aR.substring(aR.indexOf("]")+1)
+				var zR = aR.substring(aR.indexOf("["),aR.indexOf("]")+1);
+				xMin = math.evaluate(xR.substring(xR.indexOf("[")+1,xR.indexOf(",")).split("ln").join("log"))
+			  xMax = math.evaluate(xR.substring(xR.indexOf(",")+1,xR.indexOf("]")).split("ln").join("log"))
+				yMin = math.evaluate(yR.substring(yR.indexOf("[")+1,yR.indexOf(",")).split("ln").join("log"))
+			  yMax = math.evaluate(yR.substring(yR.indexOf(",")+1,yR.indexOf("]")).split("ln").join("log"))
+				zMin = math.evaluate(zR.substring(zR.indexOf("[")+1,zR.indexOf(",")).split("ln").join("log"))
+			  zMax = math.evaluate(zR.substring(zR.indexOf(",")+1,zR.indexOf("]")).split("ln").join("log"))
 				planeWidth = xMax - xMin;
 				planeHeight = yMax - yMin;
 				scene.remove(plane);
-				plane = new THREE.Mesh( new THREE.PlaneGeometry(planeWidth,planeHeight,params.resolution,params.resolution), planeMat );
-				plane.rotation.x = (-Math.PI/2);
-				scene.add(plane);
-				for (var i = 0; i < plane.geometry.faces.length; i++) {
-					plane.geometry.faces[i].vertexColors[0] = new THREE.Color( 0x000000 );
-					plane.geometry.faces[i].vertexColors[1] = new THREE.Color( 0x000000 );
-					plane.geometry.faces[i].vertexColors[2] = new THREE.Color( 0x000000 );
+				scene.remove(solidMesh);
+				for (var i = 0; i < levels.length; i++) {
+					scene.remove(levels[i]);
 				}
 				tanPlane.visible = false;circle.visible = false;
-				let fun = params.function.split("ln").join("log");
-				parsedFunction = math.parse(fun);
-				compiledFunction = math.compile(fun);
-				updatePlane();
+				var fun = params.function.split("ln").join("log");
+				updateEquationType(fun);
+				scene.remove(zaxis);
+				if (!params.contourPlot && !params.doVectorField) {
+					scene.add(zaxis)
+				}
+				if (params.contourPlot) {
+					params.approximate = false;intFolder.updateDisplay();
+					lowZ = zMin;
+					up = map(params.resolution,1,1000,.5,.01);
+					for (var c = zMin; c < zMax; c+=up) {
+						var cc = colorRange-Math.round(map(c, lowZ, zMax, 0, colorRange));
+						num = levelCurve(c,new THREE.Color("hsl("+cc+",75%,40%)"));
+						if (num == 0) {
+							lowZ+=up;
+						}
+					}
+				}else if(params.function != ""){
+					if (isImplicit) {
+						solidPlot(0,map(params.resolution,1,1000,5,128));
+					}else {
+						plane = new THREE.Mesh( new THREE.PlaneGeometry(planeWidth,planeHeight,params.resolution,params.resolution), planeMat );
+						plane.rotation.x = (-Math.PI/2);
+						scene.add(plane);
+						for (var i = 0; i < plane.geometry.faces.length; i++) {
+							plane.geometry.faces[i].vertexColors[0] = new THREE.Color( 0x000000 );
+							plane.geometry.faces[i].vertexColors[1] = new THREE.Color( 0x000000 );
+							plane.geometry.faces[i].vertexColors[2] = new THREE.Color( 0x000000 );
+						}
+						updatePlane();
+					}
+				}
 				CLineHide();
 				clearIntegralApprox();
 				showLines.__checkbox.checked = false;
 				showLines.setValue(false);
 				if (params.approximate) {
 					drawIntegralApprox();
+				}
+			}
+
+			function updateEquationType(eq){
+				var sides = eq.split("=");
+				var leftSide = sides[0];
+				var rightSide = sides[1];
+				//z=... or f(x,y)=... -- surface equation
+				if (leftSide == "z" || leftSide == "f(x,y)") {
+					isImplicit = false;
+					parsedFunction = math.parse(rightSide);
+					compiledFunction = math.compile(rightSide);
+				}else {	// implicit function
+					isImplicit = true;
+					w = leftSide+"-("+rightSide+")";
+					parsedWFunction = math.parse(w);
+					compiledWFunction = math.compile(w);
 				}
 			}
 
@@ -138,40 +219,66 @@
 					return NaN;
 				 }
 			 }
+			 function wFunc(a,b,c){
+				 // return Math.pow(x*x+y*y*9/4+z*z-1,3)-x*x*z*z*z-9/200*y*y*z*z*z
+				 // return Math.sin(x*x+y*y+z*z-64);
+				 // return a*a+b*b+c*c-16;
+				 try {
+					 return compiledWFunction.evaluate({ x: a, y: b, z: c })
+				 } catch (e) {
+					return NaN;
+				 }
+			 }
 
-			 function calculateTan(a,b){
-				 c = parsedFunction.evaluate({x: a, y: b});
-				 let dx = math.derivative(parsedFunction, "x").evaluate({x: a, y: b});
-				 let dy = math.derivative(parsedFunction, "y").evaluate({x: a, y: b});
-				 let cc = math.round(c-dx*a-dy*b,r);
-				 tanFunction = math.format(math.simplify(math.parse(math.round(dx,r)+"*x+"+math.round(dy,r)+"*y+"+cc), {}, {exactFractions: false}));
-				 tanFunction = tanFunction.split(" ").join("");
-				 tanFunction = tanFunction.split("+-").join("-");
-				 tanFunction = tanFunction.split("-+").join("-");
-				 //tanFunction = math.format(math.simplify(math.parse(tanFunction)));
+			 function calculateTan(a,b,c){
+				 if (isImplicit) {
+					 let dx = math.derivative(parsedWFunction, "x").evaluate({x: a, y: b, z: c});
+					 let dy = math.derivative(parsedWFunction, "y").evaluate({x: a, y: b, z: c});
+					 let dz = math.derivative(parsedWFunction, "z").evaluate({x: a, y: b, z: c});
+					 let ww = math.round((dx*a+dy*b+dz*c)/dz,r);
+					 var d1 = math.round(dx/dz,r);
+					 var d2 = math.round(dy/dz,r);
+					 tanFunction = math.format(math.simplify(math.parse(ww+"-"+d1+"*x-"+d2+"*y"), {}, {exactFractions: false}));
+					 tanFunction = tanFunction.split(" ").join("");
+					 tanFunction = tanFunction.split("+-").join("-");
+					 tanFunction = tanFunction.split("-+").join("-");
+				 }else {
+					 c = parsedFunction.evaluate({x: a, y: b});
+					 let dx = math.derivative(parsedFunction, "x").evaluate({x: a, y: b});
+					 let dy = math.derivative(parsedFunction, "y").evaluate({x: a, y: b});
+					 let cc = math.round(c-dx*a-dy*b,r);
+					 tanFunction = math.format(math.simplify(math.parse(math.round(dx,r)+"*x+"+math.round(dy,r)+"*y+"+cc), {}, {exactFractions: false}));
+					 tanFunction = tanFunction.split(" ").join("");
+					 tanFunction = tanFunction.split("+-").join("-");
+					 tanFunction = tanFunction.split("-+").join("-");
+					 //tanFunction = math.format(math.simplify(math.parse(tanFunction)));
+				 }
+				 											// postion vector of the tangental point
 				 return [tanFunction, new THREE.Vector3(a,c,b)];
 			 }
 
 			 function CLine(a,b){
-				 let res = 50, points = [];
+				 let res = 5, points = [];
 				 scene.remove(C1);scene.remove(C2);
-				 var material = new THREE.LineBasicMaterial( { color: 0x0000ff } );
-				 for (var i = -params.size/2; i <= params.size/2; i+=1/res) {
-					points.push( new THREE.Vector3(i,parsedFunction.evaluate({ x: i, y: b }), b) );
+				 if (isImplicit) {
+
+				 }else {
+					 for (var i = xMin; i <=xMax; i+=1/res) {
+						 points.push( new THREE.Vector3(i,parsedFunction.evaluate({ x: i, y: b }), -b) );
+					 }
+					 var geometry = new THREE.BufferGeometry().setFromPoints( points );
+					 C1 = new THREE.Line( geometry, lineMat );
+
+					 points = [];
+					 for (var i = yMin; i <= yMax; i+=1/res) {
+						 points.push( new THREE.Vector3(a,parsedFunction.evaluate({ x: a, y: i }), -i) );
+					 }
+					 geometry = new THREE.BufferGeometry().setFromPoints( points );
+					 C2 = new THREE.Line( geometry, lineMat );
+
+					 scene.add(C1);scene.add(C2);
 				 }
-				 var geometry = new THREE.BufferGeometry().setFromPoints( points );
-
-				 C1 = new THREE.Line( geometry, material );
-
-				 points = [];
-				 for (var i = -params.size/2; i <= params.size/2; i+=1/res) {
-				 	points.push( new THREE.Vector3(a,parsedFunction.evaluate({ x: a, y: i }), i) );
-				 }
-				 geometry = new THREE.BufferGeometry().setFromPoints( points );
-
-				 C2 = new THREE.Line( geometry, material );
 				 C1.visible = plane.material.wireframe; C2.visible = plane.material.wireframe;
-				 scene.add(C1);scene.add(C2);
 			 }
 
 			 function CLineHide(){
@@ -247,7 +354,7 @@
 
 				//sets vertices to actual values
 				for (var i = 0; i < plane.geometry.vertices.length; i++) {
-					let newZ = f(plane.geometry.vertices[i].x, plane.geometry.vertices[i].y)*params.zScale;
+					let newZ = f(plane.geometry.vertices[i].x, plane.geometry.vertices[i].y);
 					plane.geometry.vertices[i].z = newZ;
 					if (isFinite(newZ)) {
 						if (newZ > max) {
@@ -337,7 +444,7 @@
 				// scene
 
 				scene = new THREE.Scene();
-				scene.background = new THREE.Color( 0xcce0ff );
+				scene.background = new THREE.Color( 0xFFFFFF );
 
 				// camera
 
@@ -366,6 +473,26 @@
 				light.shadow.camera.far = 1000;
 
 				scene.add( light );
+
+				var light2 = new THREE.DirectionalLight( 0x666666, 1 );
+				light2.position.set( 50, 200, 100 );
+				light2.position.multiplyScalar( -1.3 );
+
+				light2.castShadow = true;
+
+				light2.shadow.mapSize.width = 1024;
+				light2.shadow.mapSize.height = 1024;
+
+				var d = 300;
+
+				light2.shadow.camera.left = - d;
+				light2.shadow.camera.right = d;
+				light2.shadow.camera.top = d;
+				light2.shadow.camera.bottom = - d;
+
+				light2.shadow.camera.far = 1000;
+
+				scene.add( light2 );
 
 
 				// adds plane
@@ -396,21 +523,40 @@
 				C1 = new THREE.Line( geometry, material );C2 = new THREE.Line( geometry, material );
 				C1.visible = false; C2.visible = false;
 
-				//grid
-				var s = 5;
-				xaxis = new THREE.Mesh(new THREE.BoxGeometry( s,.05,.05 ), new THREE.MeshBasicMaterial( {color: 0xff0000} ));
-				zaxis = new THREE.Mesh(new THREE.BoxGeometry( .05,s,.05 ), new THREE.MeshBasicMaterial( {color: 0x0000ff} ));
-				yaxis = new THREE.Mesh(new THREE.BoxGeometry( .05,.05,s ), new THREE.MeshBasicMaterial( {color: 0x00ff00} ));
-				xaxis.geometry.translate(s/2,0,0)
-				zaxis.geometry.translate(0,s/2,0)
-				yaxis.geometry.translate(0,0,-s/2)
+				//axis
+				var s = 20;
+				xaxis = new THREE.Mesh(new THREE.BoxGeometry( s,.025,.025 ), new THREE.MeshBasicMaterial( {color: 0xff0000} ));
+				zaxis = new THREE.Mesh(new THREE.BoxGeometry( .025,s,.025 ), new THREE.MeshBasicMaterial( {color: 0x0000ff} ));
+				yaxis = new THREE.Mesh(new THREE.BoxGeometry( .025,.025,s ), new THREE.MeshBasicMaterial( {color: 0x00ff00} ));
+				// xaxis.geometry.translate(s/2,0,0)
+				// zaxis.geometry.translate(0,s/2,0)
+				// yaxis.geometry.translate(0,0,-s/2)
 				scene.add(xaxis);
 				scene.add(yaxis);
 				scene.add(zaxis);
 
+				//grid
+				var points = [];
+				for (var y = -10; y <= 10; y++) {
+					for (var x = -10; x <= 10; x++) {
+						if (x!=10) {
+							points.push(new THREE.Vector3(x,0,-y))
+							points.push(new THREE.Vector3(x+1,0,-y))
+						}if (y!=10) {
+							points.push(new THREE.Vector3(x,0,-y))
+							points.push(new THREE.Vector3(x,0,-y-1))
+						}
+					}
+				}
+				var geometry = new THREE.BufferGeometry().setFromPoints( points );
+				gline = new THREE.LineSegments( geometry, gridMat );
+				scene.add(gline)
+
+
 				//subBoxes material
 				subBoxsPosMaterial = new THREE.MeshPhongMaterial( {color: 0x00ff00, side: THREE.DoubleSide, transparent: true, opacity: .5} );
 				subBoxsNegMaterial = new THREE.MeshPhongMaterial( {color: 0x00fff0, side: THREE.DoubleSide, transparent: true, opacity: .5} );
+
 
 				// renderer
 
@@ -449,7 +595,7 @@
 
 				// gui
 				var gui = new dat.GUI();
-				fn = gui.add( params, 'function' ).name("f(x,y)=").onFinishChange(function(){
+				fn = gui.add( params, 'function' ).name("Equation:").onFinishChange(function(){
 					update();
 				});
 				gui.add( params, 'texture' );
@@ -460,13 +606,28 @@
 			    update();
 			  });
 				gui.add( params, 'resolution' ).min(1).max(1000).step(1);
-				gui.add( params, 'zScale' ).min(0).max(2).name("Z-Scale");
+				gui.add( params, 'contourPlot').name("Contour Plot").onFinishChange(function(){
+					update();
+				});
 				gui.add( params, 'update' );
 
 				//tanFolder
 				tanFolder = gui.addFolder("Tangent");
-				coordIn = tanFolder.add(params, "coordIn").name("Coordinate x,y").onFinishChange(function(){
-					drawTangents();
+				coordIn = tanFolder.add(params, "coordIn").name("Coordinate x,y,z").onFinishChange(function(){
+					if (isImplicit && params.coordIn.indexOf(',') != params.coordIn.lastIndexOf(',')) {
+						var a = math.parse(params.coordIn.substring(0,params.coordIn.indexOf(',')).split("ln").join("log")).evaluate();
+						var b = math.parse(params.coordIn.substring(params.coordIn.indexOf(',')+1,params.coordIn.lastIndexOf(",")).split("ln").join("log")).evaluate();
+						var c = math.parse(params.coordIn.substring(params.coordIn.lastIndexOf(',')+1).split("ln").join("log")).evaluate();
+					}else {
+						var a = math.parse(params.coordIn.substring(0,params.coordIn.indexOf(',')).split("ln").join("log")).evaluate();
+						if (params.coordIn.indexOf(',') == params.coordIn.lastIndexOf(',')) {
+							var b = math.parse(params.coordIn.substring(params.coordIn.indexOf(',')+1).split("ln").join("log")).evaluate();
+						}else {
+							var b = math.parse(params.coordIn.substring(params.coordIn.indexOf(',')+1,params.coordIn.lastIndexOf(",")).split("ln").join("log")).evaluate();
+						}
+						var c = wFunc(a,b,0);
+					}
+					drawTangents(a,b,c);
 				});
 				tanOut = tanFolder.add(params, "tanOut").name("z=");
 				document.getElementsByTagName("input")[6].disabled = true;
@@ -499,22 +660,47 @@
 				intFolder.add(params,"upDT").name("Update Volume");
 				intFolder.add(params,"toInfinit").name("do n,m = 2000");
 
+				fieldFolder = gui.addFolder("Fields");
+				fieldFolder.add(params, "vectorEq").name("v = ").onFinishChange(function(){
+					clearVectors();
+					if (params.doVectorField) {
+						drawVectors();
+					}
+				});
+				fieldFolder.add(params, "isGradient").name("Is Gradient?").onFinishChange(function(){
+					clearVectors();
+					if (params.doVectorField) {
+						drawVectors();
+					}
+				});
+				fieldFolder.add(params, "vectorScaling").name("Uniform Scaling?").onFinishChange(function(){
+					clearVectors();
+					if (params.doVectorField) {
+						drawVectors();
+					}
+				});
+				fieldFolder.add(params, "doVectorField").name("Display Field").onFinishChange(function(){
+					clearVectors();
+					if (params.doVectorField) {
+						drawVectors();
+					}
+				});
+				fieldFolder.add(params, "vectorUpdate").name("Update Field");
 				update();
 			}
 
 			function onWindowResize() {
 
-				camera.aspect = (window.innerWidth-25) / (window.innerHeight-65);
+				camera.aspect = (window.innerWidth-xOff) / (window.innerHeight-yOff);
 				camera.updateProjectionMatrix();
 
-				renderer.setSize( window.innerWidth-25, window.innerHeight-65 );
+				renderer.setSize( window.innerWidth-xOff, window.innerHeight-yOff );
 
 			}
 
 			function animate() {
 
 				requestAnimationFrame( animate );
-				var time = Date.now();
 				render();
 				stats.update();
 			}
@@ -524,6 +710,9 @@
 				if (params.tangents) {
 					raycast();
 				}
+				// vector = toXYCoords(new THREE.Vector3(1,1,1));
+				// text2.style.top = vector.x + 'px';
+				// text2.style.left = vector.y + 'px';
 				renderer.render( scene, camera );
 			}
 
@@ -542,7 +731,7 @@
 
 				try {
 					// export the expression to LaTeX
-					node = math.parse("f(x,y)=="+node.toString());
+					node = math.parse(node.toString().split("=").join("=="));
 					const latex = node ? node.toTex({parenthesis: parenthesis, implicit: implicit}) : ''
 
 					// display and re-render the expression
@@ -553,8 +742,8 @@
 			}
 
 			function updateMouse( e ){
-				mouse.x = ( e.clientX / (window.innerWidth-25) ) * 2 - 1 - (11/window.innerWidth);
-				mouse.y = - ( e.clientY / (window.innerHeight-65) ) * 2 + 1 + (110/window.innerHeight);
+				mouse.x = ( e.clientX / (window.innerWidth-xOff) ) * 2 - 1 - (11/window.innerWidth);
+				mouse.y = - ( e.clientY / (window.innerHeight-yOff) ) * 2 + 1 + (110/window.innerHeight);
 			}
 
 			function raycast ( ) {
@@ -566,58 +755,23 @@
 				raycaster.setFromCamera( mouse, camera );
 
 				//3. compute intersections
-				var intersects = raycaster.intersectObjects( [plane] );
+				var intersects
+				if (isImplicit) {
+					intersects = raycaster.intersectObject( solidMesh );
+				}else {
+					intersects = raycaster.intersectObject( plane );
+				}
 				if (intersects.length > 0) {
 					let a = intersects[0].point.x, b = -intersects[0].point.z, c = intersects[0].point.y;
-					let v = calculateTan(a,b);
-					circle.position.set(v[1].x,v[1].y,-v[1].z);
-					tanOut.setValue(v[0]);
-					coordIn.setValue(math.round(a,r)+","+math.round(b,r))
-
-					//updates tangent plane
-					tanPlane.geometry.vertices[0].x = a-1;
-					tanPlane.geometry.vertices[0].y = -b+1;
-					tanPlane.geometry.vertices[0].z = -math.parse(tanFunction).evaluate({ x: a-1, y: b-1 });
-
-					tanPlane.geometry.vertices[1].x = a+1;
-					tanPlane.geometry.vertices[1].y = -b+1;
-					tanPlane.geometry.vertices[1].z = -math.parse(tanFunction).evaluate({ x: a+1, y: b-1 });
-
-					tanPlane.geometry.vertices[3].x = a+1;
-					tanPlane.geometry.vertices[3].y = -b-1;
-					tanPlane.geometry.vertices[3].z = -math.parse(tanFunction).evaluate({ x: a+1, y: b+1 });
-
-					tanPlane.geometry.vertices[2].x = a-1;
-					tanPlane.geometry.vertices[2].y = -b-1;
-					tanPlane.geometry.vertices[2].z = -math.parse(tanFunction).evaluate({ x: a-1, y: b+1 });
-
-					tanPlane.geometry.verticesNeedUpdate=true;
-					// console.log(f(intersects[ i ].point.x, intersects[ i ].point.y));
-					/*
-					An intersection has the following properties :
-					- object : intersected object (THREE.Mesh)
-					- distance : distance from camera to intersection (number)
-					- face : intersected face (THREE.Face3)
-					- faceIndex : intersected face index (number)
-					- point : intersection point (THREE.Vector3)
-					- uv : intersection point in the object's UV coordinates (THREE.Vector2)
-					*/
-					tanPlane.visible = true;
-					circle.visible = true;
-
-					//updates tangent curves
-					CLine(a, b);
+					drawTangents(a,b,c);
 				}
 
 			}
 
-			function drawTangents(a,b){
-				tanPlane.visible = true;
-				circle.visible = true;
-				var a = math.parse(params.coordIn.substr(0,params.coordIn.indexOf(',')).split("ln").join("log")).evaluate();
-				var b = math.parse(params.coordIn.substr(params.coordIn.indexOf(',')+1).split("ln").join("log")).evaluate();
-				var v = calculateTan(a,b);
+			function drawTangents(a,b,c){
+				var v = calculateTan(a,b,c);
 				circle.position.set(v[1].x,v[1].y,-v[1].z);
+				coordIn.setValue(math.round(a,r)+","+math.round(b,r)+","+math.round(v[1].y,r))
 				tanOut.setValue(v[0]);
 
 				//updates tangent plane
@@ -639,6 +793,8 @@
 
 				tanPlane.geometry.verticesNeedUpdate=true;
 
+				tanPlane.visible = true;
+				circle.visible = true;
 				//updates tangent curves
 				CLine(a, b);
 			}
@@ -655,11 +811,11 @@
 					for (var x = xMin; x < xMax; x+=dx) {
 						//point (x,z,-y)
 						if (params.method == "Bottem Left") {
-							var z = f(x,y)*params.zScale;
+							var z = f(x,y);
 						}else if (params.method == "Top Right") {
-							var z = f(x+dx,y+dy)*params.zScale;
+							var z = f(x+dx,y+dy);
 						}else if (params.method == "Midpoint") {
-							var z = f(x+dx/2,y+dy/2)*params.zScale;
+							var z = f(x+dx/2,y+dy/2);
 						}else {
 							var z = 0;
 						}
@@ -705,11 +861,11 @@
 					for (var x = xMin; x < xMax; x+=dx) {
 						//point (x,z,-y)
 						if (params.method == "Bottem Left") {
-							var z = f(x,y)*params.zScale;
+							var z = f(x,y);
 						}else if (params.method == "Top Right") {
-							var z = f(x+dx,y+dy)*params.zScale;
+							var z = f(x+dx,y+dy);
 						}else if (params.method == "Midpoint") {
-							var z = f(x+dx/2,y+dy/2)*params.zScale;
+							var z = f(x+dx/2,y+dy/2);
 						}else {
 							var z = 0;
 						}
@@ -722,6 +878,759 @@
 				params.average = ""+math.round(volume/(planeWidth*planeHeight),r+2)
 				intFolder.updateDisplay();
 			}
+
+			function drawVectors(){
+				scene.remove(zaxis);
+				minValue = 10000000, maxValue = -1000000000;
+				step = map(params.resolution,1,1000,1,.08);
+				step = map(Math.sqrt(params.resolution),1,32,1,.05);
+				var points = [];
+				var colors;
+				// color: 'hsl('+size+',75%,50%)';
+				parts = params.vectorEq.replace("<","").replace(">","").split(",");
+				vectorFun = [];
+				gradientFun = [];
+				for (var i = 0; i < parts.length; i++) {
+					vectorFun[i] = math.parse(parts[i].split("ln").join("log")).compile();
+				}
+				gradientFun[0] =  math.derivative(parts[0], "x").compile();
+				gradientFun[1] =  math.derivative(parts[1], "y").compile();
+				if (parts.length == 3) {
+					gradientFun[2] =  math.derivative(parts[2], "z").compile();
+				}
+
+				var i = 0;
+				//sets up min and max
+				if (parts.length == 3) {
+					for (var c = zMin; c < zMax; c+=step) {
+						for (var b = yMin; b < yMax; b+=step) {
+							for (var a = xMin; a < xMax; a+=step) {
+								i++;
+								if (params.isGradient) {
+									var dir = new THREE.Vector3( gradientFun[0].evaluate({x:a, y:b, z:c}), gradientFun[2].evaluate({x:a, y:b, z:c}), -gradientFun[1].evaluate({x:a, y:b, z:c}));
+								}else {
+									var dir = new THREE.Vector3( vectorFun[0].evaluate({x:a, y:b, z:c}), gradientFun[2].evaluate({x:a, y:b, z:c}), -vectorFun[1].evaluate({x:a, y:b, z:c}));
+								}
+								len = dir.length();
+								if (len > maxValue) {
+									maxValue = len;
+								}else if (len < minValue) {
+									minValue = len;
+								}
+							}
+						}
+					}
+				}else {
+					for (var b = yMin; b < yMax; b+=step) {
+						for (var a = xMin; a < xMax; a+=step) {
+							i++;
+							if (params.isGradient) {
+								var dir = new THREE.Vector3( gradientFun[0].evaluate({x:a, y:b}), 0, -gradientFun[1].evaluate({x:a, y:b}));
+							}else {
+								var dir = new THREE.Vector3( vectorFun[0].evaluate({x:a, y:b}), 0, -vectorFun[1].evaluate({x:a, y:b}));
+							}
+							len = dir.length();
+							if (len > maxValue) {
+								maxValue = len;
+							}else if (len < minValue) {
+								minValue = len;
+							}
+						}
+					}
+				}
+
+				var j = 0;
+				//Draws Vectors
+				if (parts.length == 3) {
+					colors = new Float32Array(i*6);
+					for (var c = zMin; c < zMax; c+=step) {
+						for (var b = yMin; b < yMax; b+=step) {
+							for (var a = xMin; a < xMax; a+=step) {
+								if (params.isGradient) {
+									var dir = new THREE.Vector3( gradientFun[0].evaluate({x:a, y:b, z:c}), gradientFun[2].evaluate({x:a, y:b, z:c}), -gradientFun[1].evaluate({x:a, y:b, z:c}));
+								}else {
+									var dir = new THREE.Vector3( vectorFun[0].evaluate({x:a, y:b, z:c}), gradientFun[2].evaluate({x:a, y:b, z:c}), -vectorFun[1].evaluate({x:a, y:b, z:c}));
+								}
+								if (dir.length()!=0) {
+									size = map(dir.length(),minValue,maxValue,240,0);
+									if (params.vectorScaling) {
+										dir.normalize();
+									}else {
+										dir.setLength(step)
+									}
+									dirSmall = new THREE.Vector3();
+									dirSmall.copy(dir);
+									dirSmall.setLength(dir.length()/10)
+									var color = new THREE.Color('hsl('+math.round(size,3)+',75%,50%)');
+									points.push( new THREE.Vector3(a, c, -b) )
+									points.push( new THREE.Vector3(a+dir.x, c+dir.z, dir.y-b) )
+									// points.push( new THREE.Vector3(a+dir.x, c+dir.z, dir.y-b) )
+									// points.push( new THREE.Vector3(a+dir.x+dirSmall.x, c+dir.z+dirSmall.z, dir.y+dirSmall.y-b) )
+									colors[j] = color.r;
+									colors[j+1] = color.g;
+									colors[j+2] = color.b;
+
+									colors[j+3] = color.r;
+									colors[j+4] = color.g;
+									colors[j+5] = color.b;
+
+									// colors[j+6] = 0;
+									// colors[j+7] = 0;
+									// colors[j+8] = 0;
+									//
+									// colors[j+9] = 0;
+									// colors[j+10] = 0;
+									// colors[j+11] = 0;
+									j+=6
+								}
+							}
+						}
+					}
+				}
+				else {
+					colors = new Float32Array(i*12);
+					for (var b = yMin; b < yMax; b+=step) {
+						for (var a = xMin; a < xMax; a+=step) {
+							if (params.isGradient) {
+								var dir = new THREE.Vector3( gradientFun[0].evaluate({x:a, y:b}), 0, -gradientFun[1].evaluate({x:a, y:b}));
+							}else {
+								var dir = new THREE.Vector3( vectorFun[0].evaluate({x:a, y:b}), 0, -vectorFun[1].evaluate({x:a, y:b}));
+							}
+							if (dir.length()!=0) {
+								size = map(dir.length(),minValue,maxValue,240,0);
+								if (params.vectorScaling) {
+									dir.setLength(step)
+								}else {
+									dir.setLength(  Math.min(Math.max(map(size,240,0,((xMax-xMin)+(yMax-yMin))/400,((xMax-xMin)+(yMax-yMin))/100),step/2),step)  )
+								}
+								dirSmall = new THREE.Vector3();
+								dirSmall.copy(dir);
+								dirSmall.setLength(dir.length()/10)
+								var color = new THREE.Color('hsl('+math.round(size,3)+',75%,50%)');
+								points.push( new THREE.Vector3(a, 0, -b) )
+								points.push( new THREE.Vector3(a+dir.x, 0, dir.z-b) )
+								points.push( new THREE.Vector3(a+dir.x, 0, dir.z-b) )
+								points.push( new THREE.Vector3(a+dir.x+dirSmall.x, 0, dir.z+dirSmall.z-b) )
+								colors[j] = color.r;
+								colors[j+1] = color.g;
+								colors[j+2] = color.b;
+
+								colors[j+3] = color.r;
+								colors[j+4] = color.g;
+								colors[j+5] = color.b;
+
+								colors[j+6] = 0;
+								colors[j+7] = 0;
+								colors[j+8] = 0;
+
+								colors[j+9] = 0;
+								colors[j+10] = 0;
+								colors[j+11] = 0;
+								j+=12
+							}
+						}
+					}
+				}
+				var material = new THREE.LineBasicMaterial( {linewidth: 5, vertexColors: true} );
+				var geometry = new THREE.BufferGeometry().setFromPoints( points );
+				geometry.setAttribute( 'color', new THREE.BufferAttribute( colors, 3 ) );
+				line = new THREE.LineSegments( geometry, material );
+				arrows.push(line);
+				scene.add(line);
+			}
+
+			function clearVectors(){
+				for (var i = 0; i < arrows.length; i++) {
+					scene.remove(arrows[i]);
+				}
+				arrows = [];
+				if (!params.contourPlot && !params.doVectorField) {
+					scene.add(zaxis)
+				}
+			}
+
+
+
+
+			function levelCurve(c, rgb){
+				var vertecies = marchingSquares( c, 60 );
+				var line;
+
+				var points = []
+ 				for (var i = 0; i < vertecies.length; i++) {
+ 					points.push( new THREE.Vector3(vertecies[i][2], vertecies[i][1], -vertecies[i][0]) )
+ 				}
+				var material = new THREE.LineBasicMaterial( {linewidth: 5, color: rgb,  } );
+				var geometry = new THREE.BufferGeometry().setFromPoints( points );
+				line = new THREE.LineSegments( geometry, material );
+				levels.push(line)
+				scene.add(line)
+				return points.length;
+			}
+
+			function solidPlot(c,res){
+				var geometry = new THREE.BufferGeometry();
+				triangleVertex = marchingCubes( c,res );
+				var positions = new Float32Array(triangleVertex.length *3 *3);
+				var normals = new Float32Array(triangleVertex.length *3 *3);
+				var colors = new Float32Array(triangleVertex.length *3 *3);
+				var color = new THREE.Color();
+				var pA = new THREE.Vector3();
+				var pB = new THREE.Vector3();
+				var pC = new THREE.Vector3();
+
+				var cb = new THREE.Vector3();
+				var ab = new THREE.Vector3();
+
+				//computes normals and colors
+				var j = 0;
+				for (var i = 0; i < triangleVertex.length; i+=3) {
+					// Positions
+					positions[j] = triangleVertex[i][0];
+					positions[j+1] = triangleVertex[i][2];
+					positions[j+2] = -triangleVertex[i][1];
+
+					positions[j+3] = triangleVertex[i+1][0];
+					positions[j+4] = triangleVertex[i+1][2];
+					positions[j+5] = -triangleVertex[i+1][1];
+
+					positions[j+6] = triangleVertex[i+2][0];
+					positions[j+7] = triangleVertex[i+2][2];
+					positions[j+8] = -triangleVertex[i+2][1];
+
+					// Normal faces
+					pA.set(triangleVertex[i][0],triangleVertex[i][2],-triangleVertex[i][1]);
+					pB.set(triangleVertex[i+1][0],triangleVertex[i+1][2],-triangleVertex[i+1][1]);
+					pC.set(triangleVertex[i+2][0],triangleVertex[i+2][2],-triangleVertex[i+2][1]);
+
+					cb.subVectors( pC, pB );
+					ab.subVectors( pA, pB );
+					cb.cross( ab );
+
+					cb.normalize();
+
+					var nx = cb.x;
+					var ny = cb.y;
+					var nz = cb.z;
+
+					normals[j] = nx;
+					normals[j+1] = ny;
+					normals[j+2] = nz;
+
+					normals[j+3] = nx;
+					normals[j+4] = ny;
+					normals[j+5] = nz;
+
+					normals[j+6] = nx;
+					normals[j+7] = ny;
+					normals[j+8] = nz;
+
+					// colors
+					var vx = 0;
+					var vy = 222;
+					var vz = 0;
+
+					color.setRGB( vx, vy, vz );
+
+					colors[j] = color.r;
+					colors[j+1] = color.g;
+					colors[j+2] = color.b;
+
+					colors[j+3] = color.r;
+					colors[j+4] = color.g;
+					colors[j+5] = color.b;
+
+					colors[j+6] = color.r;
+					colors[j+7] = color.g;
+					colors[j+8] = color.b;
+
+					j+=9;
+				}
+
+				geometry.setAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
+				geometry.setAttribute( 'normal', new THREE.BufferAttribute( normals, 3 ) );
+				geometry.setAttribute( 'color', new THREE.BufferAttribute( colors, 3 ) );
+
+				geometry.computeBoundingSphere();
+
+				solidMesh = new THREE.Mesh( geometry, solidMaterial );
+				scene.add( solidMesh );
+			}
+
+			// returns an array of endpoints of edges. c = zLevel, i.e. isocline value.
+			// z = f(x,y). generating the level set where z = c.
+			//returns (y,z,x) not (x,y,z) or (x,z,-y)
+			function marchingSquares(c, resolution){
+				var xStep = (xMax - xMin) / resolution;
+				var yStep = (yMax - yMin) / resolution;
+				var points = [];
+				for (var x = xMin; x < xMax; x += xStep)
+				{
+					for (var y = yMin; y < yMax; y += yStep)
+					{
+						var z1 = f(x,y);				// bottom left corner
+						var z2 = f(x+xStep, y);			// bottom right corner
+						var z4 = f(x+xStep, y+yStep);	// top right corner
+						var z8 = f(x, y+yStep);			// top left corner
+						var n = 0;
+						if (z1 > c) n += 1;
+						if (z2 > c) n += 2;
+						if (z4 > c) n += 4;
+						if (z8 > c) n += 8;
+
+						// calculate linear interpolation values along the given sides.
+						//  to simplify, could assume each is 0.5*xStep or 0.5*yStep accordingly.
+						var bottomInterp 	= (c - z1) / (z2 - z1) * xStep;
+						var topInterp 		= (c - z8) / (z4 - z8) * xStep;
+						var leftInterp 		= (c - z1) / (z8 - z1) * yStep;
+						var rightInterp 	= (c - z2) / (z4 - z2) * yStep;
+
+						// for a visual diagram of cases: https://en.wikipedia.org/wiki/Marching_squares
+						if (n == 1 || n == 14) // lower left corner
+						points.push( [y+leftInterp, 0, x], [y, 0, x+bottomInterp] );
+
+						else if (n == 2 || n == 13) // lower right corner
+						points.push( [y, 0, x+bottomInterp], [y+rightInterp, 0, x+xStep] );
+
+						else if (n == 4 || n == 11) // upper right corner
+						points.push( [y+yStep, 0, x+topInterp], [y+rightInterp, 0, x+xStep] );
+
+						else if (n == 8 || n == 7) // upper left corner
+						points.push( [y+leftInterp, 0, x], [y+yStep, 0, x+topInterp] );
+
+						else if (n == 3 || n == 12) // horizontal
+						points.push( [y+leftInterp, 0, x], [y+rightInterp, 0, x+xStep] );
+
+						else if (n == 6 || n == 9) // vertical
+						points.push( [y, 0, x+bottomInterp], [y+yStep, 0, x+topInterp] );
+
+						else if (n == 5) // should do subcase // lower left & upper right
+						points.push( [y+leftInterp, 0, x], [y, 0, x+bottomInterp], [y+yStep, 0, x+topInterp], [y+rightInterp, 0, x+xStep] );
+
+						else if (n == 10) // should do subcase // lower right & upper left
+						points.push( [y, 0, x+bottomInterp], [y+rightInterp, 0, x+xStep], [y+yStep/2, 0, x], [y+leftInterp, 0, x], [y+yStep, 0, x+topInterp] );
+
+						else if (n == 0 || n == 15) // no line segments appear in this grid square.
+						points.push();
+
+					}
+				}
+				return points;
+
+			}
+
+			function marchingCubes(c, resolution) {
+				const xStep = (xMax - xMin) / resolution
+				const yStep = (yMax - yMin) / resolution
+				const zStep = (zMax - zMin) / resolution
+				const finalTriangles = []
+				for (let x = xMin; x < xMax; x += xStep) {
+					for (let y = yMin; y < yMax; y += yStep) {
+						for (let z = zMin; z < zMax; z += zStep) {
+							// Same order as on http://paulbourke.net/geometry/polygonise/
+							const cube = new MarchingCube(x, y, z, xStep, yStep, zStep, c)
+							const cubeCase = triangleTable[cube.getIndex()]
+							for (let i = 0; i < cubeCase.length; i++) {
+								const triangle = cubeCase[i]
+								finalTriangles.push(cube.getEdgePoint(triangle[0] ));
+								finalTriangles.push(cube.getEdgePoint(triangle[1] ));
+								finalTriangles.push(cube.getEdgePoint(triangle[2] ));
+							}
+						}
+					}
+				}
+				return finalTriangles
+			}
+
+			var triangleTable = [
+				[],
+				[[0, 8, 3]],
+				[[0, 1, 9]],
+				[[1, 8, 3], [9, 8, 1]],
+				[[1, 2, 10]],
+				[[0, 8, 3], [1, 2, 10]],
+				[[9, 2, 10], [0, 2, 9]],
+				[[2, 8, 3], [2, 10, 8], [10, 9, 8]],
+				[[3, 11, 2]],
+				[[0, 11, 2], [8, 11, 0]],
+				[[1, 9, 0], [2, 3, 11]],
+				[[1, 11, 2], [1, 9, 11], [9, 8, 11]],
+				[[3, 10, 1], [11, 10, 3]],
+				[[0, 10, 1], [0, 8, 10], [8, 11, 10]],
+				[[3, 9, 0], [3, 11, 9], [11, 10, 9]],
+				[[9, 8, 10], [10, 8, 11]],
+				[[4, 7, 8]],
+				[[4, 3, 0], [7, 3, 4]],
+				[[0, 1, 9], [8, 4, 7]],
+				[[4, 1, 9], [4, 7, 1], [7, 3, 1]],
+				[[1, 2, 10], [8, 4, 7]],
+				[[3, 4, 7], [3, 0, 4], [1, 2, 10]],
+				[[9, 2, 10], [9, 0, 2], [8, 4, 7]],
+				[[2, 10, 9], [2, 9, 7], [2, 7, 3], [7, 9, 4]],
+				[[8, 4, 7], [3, 11, 2]],
+				[[11, 4, 7], [11, 2, 4], [2, 0, 4]],
+				[[9, 0, 1], [8, 4, 7], [2, 3, 11]],
+				[[4, 7, 11], [9, 4, 11], [9, 11, 2], [9, 2, 1]],
+				[[3, 10, 1], [3, 11, 10], [7, 8, 4]],
+				[[1, 11, 10], [1, 4, 11], [1, 0, 4], [7, 11, 4]],
+				[[4, 7, 8], [9, 0, 11], [9, 11, 10], [11, 0, 3]],
+				[[4, 7, 11], [4, 11, 9], [9, 11, 10]],
+				[[9, 5, 4]],
+				[[9, 5, 4], [0, 8, 3]],
+				[[0, 5, 4], [1, 5, 0]],
+				[[8, 5, 4], [8, 3, 5], [3, 1, 5]],
+				[[1, 2, 10], [9, 5, 4]],
+				[[3, 0, 8], [1, 2, 10], [4, 9, 5]],
+				[[5, 2, 10], [5, 4, 2], [4, 0, 2]],
+				[[2, 10, 5], [3, 2, 5], [3, 5, 4], [3, 4, 8]],
+				[[9, 5, 4], [2, 3, 11]],
+				[[0, 11, 2], [0, 8, 11], [4, 9, 5]],
+				[[0, 5, 4], [0, 1, 5], [2, 3, 11]],
+				[[2, 1, 5], [2, 5, 8], [2, 8, 11], [4, 8, 5]],
+				[[10, 3, 11], [10, 1, 3], [9, 5, 4]],
+				[[4, 9, 5], [0, 8, 1], [8, 10, 1], [8, 11, 10]],
+				[[5, 4, 0], [5, 0, 11], [5, 11, 10], [11, 0, 3]],
+				[[5, 4, 8], [5, 8, 10], [10, 8, 11]],
+				[[9, 7, 8], [5, 7, 9]],
+				[[9, 3, 0], [9, 5, 3], [5, 7, 3]],
+				[[0, 7, 8], [0, 1, 7], [1, 5, 7]],
+				[[1, 5, 3], [3, 5, 7]],
+				[[9, 7, 8], [9, 5, 7], [10, 1, 2]],
+				[[10, 1, 2], [9, 5, 0], [5, 3, 0], [5, 7, 3]],
+				[[8, 0, 2], [8, 2, 5], [8, 5, 7], [10, 5, 2]],
+				[[2, 10, 5], [2, 5, 3], [3, 5, 7]],
+				[[7, 9, 5], [7, 8, 9], [3, 11, 2]],
+				[[9, 5, 7], [9, 7, 2], [9, 2, 0], [2, 7, 11]],
+				[[2, 3, 11], [0, 1, 8], [1, 7, 8], [1, 5, 7]],
+				[[11, 2, 1], [11, 1, 7], [7, 1, 5]],
+				[[9, 5, 8], [8, 5, 7], [10, 1, 3], [10, 3, 11]],
+				[[5, 7, 0], [5, 0, 9], [7, 11, 0], [1, 0, 10], [11, 10, 0]],
+				[[11, 10, 0], [11, 0, 3], [10, 5, 0], [8, 0, 7], [5, 7, 0]],
+				[[11, 10, 5], [7, 11, 5]],
+				[[10, 6, 5]],
+				[[0, 8, 3], [5, 10, 6]],
+				[[9, 0, 1], [5, 10, 6]],
+				[[1, 8, 3], [1, 9, 8], [5, 10, 6]],
+				[[1, 6, 5], [2, 6, 1]],
+				[[1, 6, 5], [1, 2, 6], [3, 0, 8]],
+				[[9, 6, 5], [9, 0, 6], [0, 2, 6]],
+				[[5, 9, 8], [5, 8, 2], [5, 2, 6], [3, 2, 8]],
+				[[2, 3, 11], [10, 6, 5]],
+				[[11, 0, 8], [11, 2, 0], [10, 6, 5]],
+				[[0, 1, 9], [2, 3, 11], [5, 10, 6]],
+				[[5, 10, 6], [1, 9, 2], [9, 11, 2], [9, 8, 11]],
+				[[6, 3, 11], [6, 5, 3], [5, 1, 3]],
+				[[0, 8, 11], [0, 11, 5], [0, 5, 1], [5, 11, 6]],
+				[[3, 11, 6], [0, 3, 6], [0, 6, 5], [0, 5, 9]],
+				[[6, 5, 9], [6, 9, 11], [11, 9, 8]],
+				[[5, 10, 6], [4, 7, 8]],
+				[[4, 3, 0], [4, 7, 3], [6, 5, 10]],
+				[[1, 9, 0], [5, 10, 6], [8, 4, 7]],
+				[[10, 6, 5], [1, 9, 7], [1, 7, 3], [7, 9, 4]],
+				[[6, 1, 2], [6, 5, 1], [4, 7, 8]],
+				[[1, 2, 5], [5, 2, 6], [3, 0, 4], [3, 4, 7]],
+				[[8, 4, 7], [9, 0, 5], [0, 6, 5], [0, 2, 6]],
+				[[7, 3, 9], [7, 9, 4], [3, 2, 9], [5, 9, 6], [2, 6, 9]],
+				[[3, 11, 2], [7, 8, 4], [10, 6, 5]],
+				[[5, 10, 6], [4, 7, 2], [4, 2, 0], [2, 7, 11]],
+				[[0, 1, 9], [4, 7, 8], [2, 3, 11], [5, 10, 6]],
+				[[9, 2, 1], [9, 11, 2], [9, 4, 11], [7, 11, 4], [5, 10, 6]],
+				[[8, 4, 7], [3, 11, 5], [3, 5, 1], [5, 11, 6]],
+				[[5, 1, 11], [5, 11, 6], [1, 0, 11], [7, 11, 4], [0, 4, 11]],
+				[[0, 5, 9], [0, 6, 5], [0, 3, 6], [11, 6, 3], [8, 4, 7]],
+				[[6, 5, 9], [6, 9, 11], [4, 7, 9], [7, 11, 9]],
+				[[10, 4, 9], [6, 4, 10]],
+				[[4, 10, 6], [4, 9, 10], [0, 8, 3]],
+				[[10, 0, 1], [10, 6, 0], [6, 4, 0]],
+				[[8, 3, 1], [8, 1, 6], [8, 6, 4], [6, 1, 10]],
+				[[1, 4, 9], [1, 2, 4], [2, 6, 4]],
+				[[3, 0, 8], [1, 2, 9], [2, 4, 9], [2, 6, 4]],
+				[[0, 2, 4], [4, 2, 6]],
+				[[8, 3, 2], [8, 2, 4], [4, 2, 6]],
+				[[10, 4, 9], [10, 6, 4], [11, 2, 3]],
+				[[0, 8, 2], [2, 8, 11], [4, 9, 10], [4, 10, 6]],
+				[[3, 11, 2], [0, 1, 6], [0, 6, 4], [6, 1, 10]],
+				[[6, 4, 1], [6, 1, 10], [4, 8, 1], [2, 1, 11], [8, 11, 1]],
+				[[9, 6, 4], [9, 3, 6], [9, 1, 3], [11, 6, 3]],
+				[[8, 11, 1], [8, 1, 0], [11, 6, 1], [9, 1, 4], [6, 4, 1]],
+				[[3, 11, 6], [3, 6, 0], [0, 6, 4]],
+				[[6, 4, 8], [11, 6, 8]],
+				[[7, 10, 6], [7, 8, 10], [8, 9, 10]],
+				[[0, 7, 3], [0, 10, 7], [0, 9, 10], [6, 7, 10]],
+				[[10, 6, 7], [1, 10, 7], [1, 7, 8], [1, 8, 0]],
+				[[10, 6, 7], [10, 7, 1], [1, 7, 3]],
+				[[1, 2, 6], [1, 6, 8], [1, 8, 9], [8, 6, 7]],
+				[[2, 6, 9], [2, 9, 1], [6, 7, 9], [0, 9, 3], [7, 3, 9]],
+				[[7, 8, 0], [7, 0, 6], [6, 0, 2]],
+				[[7, 3, 2], [6, 7, 2]],
+				[[2, 3, 11], [10, 6, 8], [10, 8, 9], [8, 6, 7]],
+				[[2, 0, 7], [2, 7, 11], [0, 9, 7], [6, 7, 10], [9, 10, 7]],
+				[[1, 8, 0], [1, 7, 8], [1, 10, 7], [6, 7, 10], [2, 3, 11]],
+				[[11, 2, 1], [11, 1, 7], [10, 6, 1], [6, 7, 1]],
+				[[8, 9, 6], [8, 6, 7], [9, 1, 6], [11, 6, 3], [1, 3, 6]],
+				[[0, 9, 1], [11, 6, 7]],
+				[[7, 8, 0], [7, 0, 6], [3, 11, 0], [11, 6, 0]],
+				[[7, 11, 6]],
+				[[7, 6, 11]],
+				[[3, 0, 8], [11, 7, 6]],
+				[[0, 1, 9], [11, 7, 6]],
+				[[8, 1, 9], [8, 3, 1], [11, 7, 6]],
+				[[10, 1, 2], [6, 11, 7]],
+				[[1, 2, 10], [3, 0, 8], [6, 11, 7]],
+				[[2, 9, 0], [2, 10, 9], [6, 11, 7]],
+				[[6, 11, 7], [2, 10, 3], [10, 8, 3], [10, 9, 8]],
+				[[7, 2, 3], [6, 2, 7]],
+				[[7, 0, 8], [7, 6, 0], [6, 2, 0]],
+				[[2, 7, 6], [2, 3, 7], [0, 1, 9]],
+				[[1, 6, 2], [1, 8, 6], [1, 9, 8], [8, 7, 6]],
+				[[10, 7, 6], [10, 1, 7], [1, 3, 7]],
+				[[10, 7, 6], [1, 7, 10], [1, 8, 7], [1, 0, 8]],
+				[[0, 3, 7], [0, 7, 10], [0, 10, 9], [6, 10, 7]],
+				[[7, 6, 10], [7, 10, 8], [8, 10, 9]],
+				[[6, 8, 4], [11, 8, 6]],
+				[[3, 6, 11], [3, 0, 6], [0, 4, 6]],
+				[[8, 6, 11], [8, 4, 6], [9, 0, 1]],
+				[[9, 4, 6], [9, 6, 3], [9, 3, 1], [11, 3, 6]],
+				[[6, 8, 4], [6, 11, 8], [2, 10, 1]],
+				[[1, 2, 10], [3, 0, 11], [0, 6, 11], [0, 4, 6]],
+				[[4, 11, 8], [4, 6, 11], [0, 2, 9], [2, 10, 9]],
+				[[10, 9, 3], [10, 3, 2], [9, 4, 3], [11, 3, 6], [4, 6, 3]],
+				[[8, 2, 3], [8, 4, 2], [4, 6, 2]],
+				[[0, 4, 2], [4, 6, 2]],
+				[[1, 9, 0], [2, 3, 4], [2, 4, 6], [4, 3, 8]],
+				[[1, 9, 4], [1, 4, 2], [2, 4, 6]],
+				[[8, 1, 3], [8, 6, 1], [8, 4, 6], [6, 10, 1]],
+				[[10, 1, 0], [10, 0, 6], [6, 0, 4]],
+				[[4, 6, 3], [4, 3, 8], [6, 10, 3], [0, 3, 9], [10, 9, 3]],
+				[[10, 9, 4], [6, 10, 4]],
+				[[4, 9, 5], [7, 6, 11]],
+				[[0, 8, 3], [4, 9, 5], [11, 7, 6]],
+				[[5, 0, 1], [5, 4, 0], [7, 6, 11]],
+				[[11, 7, 6], [8, 3, 4], [3, 5, 4], [3, 1, 5]],
+				[[9, 5, 4], [10, 1, 2], [7, 6, 11]],
+				[[6, 11, 7], [1, 2, 10], [0, 8, 3], [4, 9, 5]],
+				[[7, 6, 11], [5, 4, 10], [4, 2, 10], [4, 0, 2]],
+				[[3, 4, 8], [3, 5, 4], [3, 2, 5], [10, 5, 2], [11, 7, 6]],
+				[[7, 2, 3], [7, 6, 2], [5, 4, 9]],
+				[[9, 5, 4], [0, 8, 6], [0, 6, 2], [6, 8, 7]],
+				[[3, 6, 2], [3, 7, 6], [1, 5, 0], [5, 4, 0]],
+				[[6, 2, 8], [6, 8, 7], [2, 1, 8], [4, 8, 5], [1, 5, 8]],
+				[[9, 5, 4], [10, 1, 6], [1, 7, 6], [1, 3, 7]],
+				[[1, 6, 10], [1, 7, 6], [1, 0, 7], [8, 7, 0], [9, 5, 4]],
+				[[4, 0, 10], [4, 10, 5], [0, 3, 10], [6, 10, 7], [3, 7, 10]],
+				[[7, 6, 10], [7, 10, 8], [5, 4, 10], [4, 8, 10]],
+				[[6, 9, 5], [6, 11, 9], [11, 8, 9]],
+				[[3, 6, 11], [0, 6, 3], [0, 5, 6], [0, 9, 5]],
+				[[0, 11, 8], [0, 5, 11], [0, 1, 5], [5, 6, 11]],
+				[[6, 11, 3], [6, 3, 5], [5, 3, 1]],
+				[[1, 2, 10], [9, 5, 11], [9, 11, 8], [11, 5, 6]],
+				[[0, 11, 3], [0, 6, 11], [0, 9, 6], [5, 6, 9], [1, 2, 10]],
+				[[11, 8, 5], [11, 5, 6], [8, 0, 5], [10, 5, 2], [0, 2, 5]],
+				[[6, 11, 3], [6, 3, 5], [2, 10, 3], [10, 5, 3]],
+				[[5, 8, 9], [5, 2, 8], [5, 6, 2], [3, 8, 2]],
+				[[9, 5, 6], [9, 6, 0], [0, 6, 2]],
+				[[1, 5, 8], [1, 8, 0], [5, 6, 8], [3, 8, 2], [6, 2, 8]],
+				[[1, 5, 6], [2, 1, 6]],
+				[[1, 3, 6], [1, 6, 10], [3, 8, 6], [5, 6, 9], [8, 9, 6]],
+				[[10, 1, 0], [10, 0, 6], [9, 5, 0], [5, 6, 0]],
+				[[0, 3, 8], [5, 6, 10]],
+				[[10, 5, 6]],
+				[[11, 5, 10], [7, 5, 11]],
+				[[11, 5, 10], [11, 7, 5], [8, 3, 0]],
+				[[5, 11, 7], [5, 10, 11], [1, 9, 0]],
+				[[10, 7, 5], [10, 11, 7], [9, 8, 1], [8, 3, 1]],
+				[[11, 1, 2], [11, 7, 1], [7, 5, 1]],
+				[[0, 8, 3], [1, 2, 7], [1, 7, 5], [7, 2, 11]],
+				[[9, 7, 5], [9, 2, 7], [9, 0, 2], [2, 11, 7]],
+				[[7, 5, 2], [7, 2, 11], [5, 9, 2], [3, 2, 8], [9, 8, 2]],
+				[[2, 5, 10], [2, 3, 5], [3, 7, 5]],
+				[[8, 2, 0], [8, 5, 2], [8, 7, 5], [10, 2, 5]],
+				[[9, 0, 1], [5, 10, 3], [5, 3, 7], [3, 10, 2]],
+				[[9, 8, 2], [9, 2, 1], [8, 7, 2], [10, 2, 5], [7, 5, 2]],
+				[[1, 3, 5], [3, 7, 5]],
+				[[0, 8, 7], [0, 7, 1], [1, 7, 5]],
+				[[9, 0, 3], [9, 3, 5], [5, 3, 7]],
+				[[9, 8, 7], [5, 9, 7]],
+				[[5, 8, 4], [5, 10, 8], [10, 11, 8]],
+				[[5, 0, 4], [5, 11, 0], [5, 10, 11], [11, 3, 0]],
+				[[0, 1, 9], [8, 4, 10], [8, 10, 11], [10, 4, 5]],
+				[[10, 11, 4], [10, 4, 5], [11, 3, 4], [9, 4, 1], [3, 1, 4]],
+				[[2, 5, 1], [2, 8, 5], [2, 11, 8], [4, 5, 8]],
+				[[0, 4, 11], [0, 11, 3], [4, 5, 11], [2, 11, 1], [5, 1, 11]],
+				[[0, 2, 5], [0, 5, 9], [2, 11, 5], [4, 5, 8], [11, 8, 5]],
+				[[9, 4, 5], [2, 11, 3]],
+				[[2, 5, 10], [3, 5, 2], [3, 4, 5], [3, 8, 4]],
+				[[5, 10, 2], [5, 2, 4], [4, 2, 0]],
+				[[3, 10, 2], [3, 5, 10], [3, 8, 5], [4, 5, 8], [0, 1, 9]],
+				[[5, 10, 2], [5, 2, 4], [1, 9, 2], [9, 4, 2]],
+				[[8, 4, 5], [8, 5, 3], [3, 5, 1]],
+				[[0, 4, 5], [1, 0, 5]],
+				[[8, 4, 5], [8, 5, 3], [9, 0, 5], [0, 3, 5]],
+				[[9, 4, 5]],
+				[[4, 11, 7], [4, 9, 11], [9, 10, 11]],
+				[[0, 8, 3], [4, 9, 7], [9, 11, 7], [9, 10, 11]],
+				[[1, 10, 11], [1, 11, 4], [1, 4, 0], [7, 4, 11]],
+				[[3, 1, 4], [3, 4, 8], [1, 10, 4], [7, 4, 11], [10, 11, 4]],
+				[[4, 11, 7], [9, 11, 4], [9, 2, 11], [9, 1, 2]],
+				[[9, 7, 4], [9, 11, 7], [9, 1, 11], [2, 11, 1], [0, 8, 3]],
+				[[11, 7, 4], [11, 4, 2], [2, 4, 0]],
+				[[11, 7, 4], [11, 4, 2], [8, 3, 4], [3, 2, 4]],
+				[[2, 9, 10], [2, 7, 9], [2, 3, 7], [7, 4, 9]],
+				[[9, 10, 7], [9, 7, 4], [10, 2, 7], [8, 7, 0], [2, 0, 7]],
+				[[3, 7, 10], [3, 10, 2], [7, 4, 10], [1, 10, 0], [4, 0, 10]],
+				[[1, 10, 2], [8, 7, 4]],
+				[[4, 9, 1], [4, 1, 7], [7, 1, 3]],
+				[[4, 9, 1], [4, 1, 7], [0, 8, 1], [8, 7, 1]],
+				[[4, 0, 3], [7, 4, 3]],
+				[[4, 8, 7]],
+				[[9, 10, 8], [10, 11, 8]],
+				[[3, 0, 9], [3, 9, 11], [11, 9, 10]],
+				[[0, 1, 10], [0, 10, 8], [8, 10, 11]],
+				[[3, 1, 10], [11, 3, 10]],
+				[[1, 2, 11], [1, 11, 9], [9, 11, 8]],
+				[[3, 0, 9], [3, 9, 11], [1, 2, 9], [2, 11, 9]],
+				[[0, 2, 11], [8, 0, 11]],
+				[[3, 2, 11]],
+				[[2, 3, 8], [2, 8, 10], [10, 8, 9]],
+				[[9, 10, 2], [0, 9, 2]],
+				[[2, 3, 8], [2, 8, 10], [0, 1, 8], [1, 10, 8]],
+				[[1, 10, 2]],
+				[[1, 3, 8], [9, 1, 8]],
+				[[0, 9, 1]],
+				[[0, 3, 8]],
+				[]
+			]
+
+			/**
+			 * Interpolation
+			 *
+			 * Interpolates to find the value of x that makes
+			 * f(x) == c, assuming that a is f(x1), b is f(x2)
+			 * and c is between a and b.
+			 */
+			function interp(x1, x2, a, b, c) {
+				const t = (c - a) / (b - a)
+				return x1 * (1 - t) + x2 * t
+			}
+
+			class MarchingCube {
+
+				constructor(x, y, z, xStep, yStep, zStep, c) {
+					this.x = x
+					this.y = y
+					this.z = z
+					this.xStep = xStep
+					this.yStep = yStep
+					this.zStep = zStep
+					this.c = c
+					this.v1 = wFunc(x, y, z)
+					this.v2 = wFunc(x+xStep, y, z)
+					this.v4 = wFunc(x+xStep, y, z+zStep)
+					this.v8 = wFunc(x, y, z+zStep)
+					this.v16 = wFunc(x, y+yStep, z)
+					this.v32 = wFunc(x+xStep, y+yStep, z)
+					this.v64 = wFunc(x+xStep, y+yStep, z+zStep)
+					this.v128 = wFunc(x, y+yStep, z+zStep)
+					this.edgePoints = new Map()
+				}
+
+				/**
+				 * getIndex
+				 *
+				 * Return the index into the 256 value lookup table
+				 */
+				getIndex() {
+					let index = 0
+					const values = [
+						this.v1, this.v2, this.v4, this.v8,
+						this.v16, this.v32, this.v64, this.v128
+					]
+					for (let i = 0; i < values.length; i++) {
+						const bit = 2**i
+						index += (values[i] > this.c) * bit
+					}
+					return index
+				}
+
+				getEdgePoint(edgeIndex) {
+					if (this.edgePoints.has(edgeIndex)) {
+						return this.edgePoints.get(edgeIndex)
+					}
+					let x, y, z
+					switch (edgeIndex) {
+
+						// See edge numbers here: http://paulbourke.net/geometry/polygonise/
+						case 0:
+							x = interp(this.x, this.x+this.xStep, this.v1, this.v2, this.c)
+							y = this.y
+							z = this.z
+							break
+						case 1:
+							x = this.x + this.xStep
+							y = this.y
+							z = interp(this.z, this.z+this.zStep, this.v2, this.v4, this.c)
+							break
+						case 2:
+							x = interp(this.x, this.x+this.xStep, this.v8, this.v4, this.c)
+							y = this.y
+							z = this.z + this.zStep
+							break
+						case 3:
+							x = this.x
+							y = this.y
+							z = interp(this.z, this.z+this.zStep, this.v1, this.v8, this.c)
+							break
+						case 4:
+							x = interp(this.x, this.x+this.xStep, this.v16, this.v32, this.c)
+							y = this.y + this.yStep
+							z = this.z
+							break
+						case 5:
+							x = this.x + this.xStep
+							y = this.y + this.yStep
+							z = interp(this.z, this.z+this.zStep, this.v32, this.v64, this.c)
+							break
+						case 6:
+							x = interp(this.x, this.x+this.xStep, this.v128, this.v64, this.c)
+							y = this.y + this.yStep
+							z = this.z + this.zStep
+							break
+						case 7:
+							x = this.x
+							y = this.y + this.yStep
+							z = interp(this.z, this.z+this.zStep, this.v16, this.v128, this.c)
+							break
+						case 8:
+							x = this.x
+							y = interp(this.y, this.y+this.yStep, this.v1, this.v16, this.c)
+							z = this.z
+							break
+						case 9:
+							x = this.x + this.xStep
+							y = interp(this.y, this.y+this.yStep, this.v2, this.v32, this.c)
+							z = this.z
+							break
+						case 10:
+							x = this.x + this.xStep
+							y = interp(this.y, this.y+this.yStep, this.v4, this.v64, this.c)
+							z = this.z + this.zStep
+							break
+						case 11:
+							x = this.x
+							y = interp(this.y, this.y+this.yStep, this.v8, this.v128, this.c)
+							z = this.z + this.zStep
+							break
+						default:
+							throw new Error('Edge index must be between 0 and 11')
+
+					}
+					this.edgePoints.set(edgeIndex, [x, y, z] )
+					return [x, y, z]
+				}
+
+			}
+
+
 		</script>
 
 	</body>
