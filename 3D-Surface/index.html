@@ -882,8 +882,6 @@
 			function drawVectors(){
 				scene.remove(zaxis);
 				minValue = 10000000, maxValue = -1000000000;
-				step = map(params.resolution,1,1000,1,.08);
-				step = map(Math.sqrt(params.resolution),1,32,1,.05);
 				var points = [];
 				var colors;
 				// color: 'hsl('+size+',75%,50%)';
@@ -899,6 +897,13 @@
 					if (parts.length == 3) {
 						gradientFun[2] =  math.derivative(parts[2], "z").compile();
 					}
+				}
+
+				if (parts.length == 3) {
+					step = map(params.resolution,1,1000,3,.5);
+				}else {
+					step = map(params.resolution,1,1000,1,.08);
+					step = map(Math.sqrt(params.resolution),1,32,1,.05);
 				}
 
 				var i = 0;
