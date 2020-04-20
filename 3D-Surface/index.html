@@ -893,10 +893,12 @@
 				for (var i = 0; i < parts.length; i++) {
 					vectorFun[i] = math.parse(parts[i].split("ln").join("log")).compile();
 				}
-				gradientFun[0] =  math.derivative(parts[0], "x").compile();
-				gradientFun[1] =  math.derivative(parts[1], "y").compile();
-				if (parts.length == 3) {
-					gradientFun[2] =  math.derivative(parts[2], "z").compile();
+				if (params.isGradient) {
+					gradientFun[0] =  math.derivative(parts[0], "x").compile();
+					gradientFun[1] =  math.derivative(parts[1], "y").compile();
+					if (parts.length == 3) {
+						gradientFun[2] =  math.derivative(parts[2], "z").compile();
+					}
 				}
 
 				var i = 0;
@@ -909,7 +911,7 @@
 								if (params.isGradient) {
 									var dir = new THREE.Vector3( gradientFun[0].evaluate({x:a, y:b, z:c}), gradientFun[2].evaluate({x:a, y:b, z:c}), -gradientFun[1].evaluate({x:a, y:b, z:c}));
 								}else {
-									var dir = new THREE.Vector3( vectorFun[0].evaluate({x:a, y:b, z:c}), gradientFun[2].evaluate({x:a, y:b, z:c}), -vectorFun[1].evaluate({x:a, y:b, z:c}));
+									var dir = new THREE.Vector3( vectorFun[0].evaluate({x:a, y:b, z:c}), vectorFun[2].evaluate({x:a, y:b, z:c}), -vectorFun[1].evaluate({x:a, y:b, z:c}));
 								}
 								len = dir.length();
 								if (len > maxValue) {
@@ -949,7 +951,7 @@
 								if (params.isGradient) {
 									var dir = new THREE.Vector3( gradientFun[0].evaluate({x:a, y:b, z:c}), gradientFun[2].evaluate({x:a, y:b, z:c}), -gradientFun[1].evaluate({x:a, y:b, z:c}));
 								}else {
-									var dir = new THREE.Vector3( vectorFun[0].evaluate({x:a, y:b, z:c}), gradientFun[2].evaluate({x:a, y:b, z:c}), -vectorFun[1].evaluate({x:a, y:b, z:c}));
+									var dir = new THREE.Vector3( vectorFun[0].evaluate({x:a, y:b, z:c}), vectorFun[2].evaluate({x:a, y:b, z:c}), -vectorFun[1].evaluate({x:a, y:b, z:c}));
 								}
 								if (dir.length()!=0) {
 									size = map(dir.length(),minValue,maxValue,240,0);
@@ -961,9 +963,13 @@
 									dirSmall = new THREE.Vector3();
 									dirSmall.copy(dir);
 									dirSmall.setLength(dir.length()/10)
-									var color = new THREE.Color('hsl('+math.round(size,3)+',75%,50%)');
+									var hsl = math.round(size,3);
+									if (!isFinite(hsl)) {
+										hsl = 0;
+									}
+									var color = new THREE.Color('hsl('hsl+',75%,50%)');
 									points.push( new THREE.Vector3(a, c, -b) )
-									points.push( new THREE.Vector3(a+dir.x, c+dir.z, dir.y-b) )
+									points.push( new THREE.Vector3(a+dir.x, c+dir.y, dir.z-b) )
 									// points.push( new THREE.Vector3(a+dir.x, c+dir.z, dir.y-b) )
 									// points.push( new THREE.Vector3(a+dir.x+dirSmall.x, c+dir.z+dirSmall.z, dir.y+dirSmall.y-b) )
 									colors[j] = color.r;
@@ -1006,7 +1012,11 @@
 								dirSmall = new THREE.Vector3();
 								dirSmall.copy(dir);
 								dirSmall.setLength(dir.length()/10)
-								var color = new THREE.Color('hsl('+math.round(size,3)+',75%,50%)');
+								var hsl = math.round(size,3);
+								if (!isFinite(hsl)) {
+									hsl = 0;
+								}
+								var color = new THREE.Color('hsl('hsl+',75%,50%)');
 								points.push( new THREE.Vector3(a, 0, -b) )
 								points.push( new THREE.Vector3(a+dir.x, 0, dir.z-b) )
 								points.push( new THREE.Vector3(a+dir.x, 0, dir.z-b) )
