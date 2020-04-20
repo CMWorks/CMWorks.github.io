@@ -967,7 +967,7 @@
 									if (!isFinite(hsl)) {
 										hsl = 0;
 									}
-									var color = new THREE.Color('hsl('hsl+',75%,50%)');
+									var color = new THREE.Color('hsl('+hsl+',75%,50%)');
 									points.push( new THREE.Vector3(a, c, -b) )
 									points.push( new THREE.Vector3(a+dir.x, c+dir.y, dir.z-b) )
 									// points.push( new THREE.Vector3(a+dir.x, c+dir.z, dir.y-b) )
@@ -1016,7 +1016,7 @@
 								if (!isFinite(hsl)) {
 									hsl = 0;
 								}
-								var color = new THREE.Color('hsl('hsl+',75%,50%)');
+								var color = new THREE.Color('hsl('+hsl+',75%,50%)');
 								points.push( new THREE.Vector3(a, 0, -b) )
 								points.push( new THREE.Vector3(a+dir.x, 0, dir.z-b) )
 								points.push( new THREE.Vector3(a+dir.x, 0, dir.z-b) )
