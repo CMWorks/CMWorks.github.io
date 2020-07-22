@@ -95,13 +95,14 @@
 			var light;
 			var colorRange = 240; // 240 for blue to red
 			var texture = 0;
+			var threeColors = []
 			var parsedFunction, parsedWFunction;
 			var compiledFunction, compiledWFunction;
 			var isImplicit = false;
 			var isVector = false;
 			var params = {
 				// Main
-				function: "z=x^2+y^2",
+				function: "z=sin(x)+sin(y)",
 				texture: changeTexture,
 				color: "#000000",
 				rRange: "[-5,5] × [-5,5] × [-5,5]",
@@ -158,10 +159,12 @@
 			var showLines;
 			var C1, C2;
 			var r = 2;
-
+			var d = new Date();
 			//Volume
 			var intFolder;
-			var subBoxs = [];
+			// var subBoxs = [];
+			var boxFieldPos;
+			var boxFieldNeg;
 			var subBoxsPosMaterial, subBoxsNegMaterial;
 			var volume;
 
@@ -174,7 +177,7 @@
 
 			function update(){
 				showLoadingScreen(true);
-				setTimeout(run,50);
+				setTimeout(run,25);
 				function run(){
 					min = 0;
 					max = 0;
@@ -200,24 +203,24 @@
 					tanPlane.visible = false;circle.visible = false;
 					var fun = params.function.split("ln").join("log");
 					updateEquationType(fun);
-					scene.remove(zaxis);
+					//scene.remove(zaxis);
 					if (!params.contourPlot && !params.doVectorField) {
-						scene.add(zaxis)
+						//scene.add(zaxis)
 					}
 					if (params.contourPlot) {
 						params.approximate = false;intFolder.updateDisplay();
 						lowZ = zMin;
-						up = map(params.resolution,1,1000,.5,.01);
+						up = map(params.resolution,1,500,.5,.01);
 						for (var c = zMin; c < zMax; c+=up) {
 							var cc = colorRange-Math.round(map(c, lowZ, zMax, 0, colorRange));
-							num = levelCurve(c,new THREE.Color("hsl("+cc+",75%,40%)"));
+							num = levelCurve(c,threeColors[cc]);
 							if (num == 0) {
 								lowZ+=up;
 							}
 						}
 					}else if(params.function != ""){
 						if (isImplicit) {
-							solidPlot(0,map(params.resolution,1,1000,5,128));
+							solidPlot(0,map(params.resolution,1,500,5,100));
 						}else {
 							plane = new THREE.Mesh( new THREE.PlaneGeometry(planeWidth,planeHeight,params.resolution,params.resolution), planeMat );
 							plane.rotation.x = (-Math.PI/2);
@@ -391,6 +394,8 @@
 			function updatePlane(){
 				// total vertices for a resolution of n is n^2+2*n+1
 				//sets vertices to points based on bounded range R
+
+				var last = d.getTime();
 				var n = 0;
 				var dx = planeWidth/params.resolution;
 				var dy = planeHeight/params.resolution;
@@ -399,14 +404,23 @@
 						if (n < params.resolution*params.resolution+2*params.resolution+1) {
 							plane.geometry.vertices[n].x = x;
 							plane.geometry.vertices[n].y = y;
+							let newZ = f(x, y);
+							plane.geometry.vertices[n].z = newZ;
+							if (isFinite(newZ)) {
+								if (newZ > max) {
+									max = newZ;
+								}if (newZ < min) {
+									min = newZ;
+								}
+							}
 							n++;
 						}else {
 							break;
 						}
 					}
 				}
-
-				//sets vertices to actual values
+				/*
+				// sets vertices to actual values
 				for (var i = 0; i < plane.geometry.vertices.length; i++) {
 					let newZ = f(plane.geometry.vertices[i].x, plane.geometry.vertices[i].y);
 					plane.geometry.vertices[i].z = newZ;
@@ -417,34 +431,42 @@
 							min = newZ;
 						}
 					}
-				}
+				}*/
 				colorPlane();
 				plane.geometry.verticesNeedUpdate=true;
 			}
 
 			function colorPlane(){
+				/*for (var i = 0; i < plane.geometry.faces.length; i++) {
+					plane.geometry.faces[i].vertexColors[0].setHex(0x000000)
+					plane.geometry.faces[i].vertexColors[1].setHex(0x000000)
+					plane.geometry.faces[i].vertexColors[2].setHex(0x000000)
+				}*/
+				var col1 = new THREE.Color(params.color)
+				var col2 = new THREE.Color()
 				for (var i = 0; i < plane.geometry.faces.length; i++) {
 					plane.geometry.faces[i].vertexColors[0].setHex(0x000000)
 					plane.geometry.faces[i].vertexColors[1].setHex(0x000000)
 					plane.geometry.faces[i].vertexColors[2].setHex(0x000000)
-				}
-				for (var i = 0; i < plane.geometry.faces.length; i++) {
 					var a = plane.geometry.vertices[plane.geometry.faces[i].a].z;
 					var b = plane.geometry.vertices[plane.geometry.faces[i].b].z;
 					var c = plane.geometry.vertices[plane.geometry.faces[i].c].z;
 					if (texture == 0) { // colored lines
-						plane.geometry.faces[i].vertexColors[0].add(new THREE.Color(params.color));
-						plane.geometry.faces[i].vertexColors[1].add(new THREE.Color());
-						plane.geometry.faces[i].vertexColors[2].add(new THREE.Color(params.color));
+						plane.geometry.faces[i].vertexColors[0].add(col1);
+						plane.geometry.faces[i].vertexColors[1].add(col2);
+						plane.geometry.faces[i].vertexColors[2].add(col1);
 						var ca = colorRange-Math.round(map(a, min, max, 0, colorRange));
 						var cb = colorRange-Math.round(map(b, min, max, 0, colorRange));
 						var cc = colorRange-Math.round(map(c, min, max, 0, colorRange));
 						if (isFinite(ca)) {
-							plane.geometry.faces[i].vertexColors[0].add(new THREE.Color("hsl("+ca+",75%,40%)"));
+							plane.geometry.faces[i].vertexColors[0].add(threeColors[ca])
+							//plane.geometry.faces[i].vertexColors[0].add(new THREE.Color("hsl("+ca+",75%,40%)"));
 						}if (isFinite(cb)) {
-							plane.geometry.faces[i].vertexColors[1].add(new THREE.Color("hsl("+cb+",75%,40%)"));
+							plane.geometry.faces[i].vertexColors[1].add(threeColors[cb])
+							// plane.geometry.faces[i].vertexColors[1].add(new THREE.Color("hsl("+cb+",75%,40%)"));
 						}if (isFinite(cc)) {
-							plane.geometry.faces[i].vertexColors[2].add(new THREE.Color("hsl("+cc+",75%,40%)"));
+							plane.geometry.faces[i].vertexColors[2].add(threeColors[cc])
+							// plane.geometry.faces[i].vertexColors[2].add(new THREE.Color("hsl("+cc+",75%,40%)"));
 						}
 					}else if(texture == 1){ // blue map
 						var cb = Math.round(map(b, min, max, 00, 255));
@@ -556,6 +578,10 @@
 
 				scene.add( light2 );
 
+				// sets up threeColors
+				for (var i = 0; i <= 240; i++) {
+					threeColors[i] = new THREE.Color("hsl("+i+",75%,40%)")
+				}
 
 				// adds plane
 				plane = new THREE.Mesh( new THREE.PlaneGeometry(10,10,10,10), planeMat );
@@ -586,16 +612,16 @@
 				C1.visible = false; C2.visible = false;
 
 				//axis
-				var s = 20;
+				var s = 10;
 				xaxis = new THREE.Mesh(new THREE.BoxGeometry( s,.025,.025 ), new THREE.MeshBasicMaterial( {color: 0xff0000} ));
-				zaxis = new THREE.Mesh(new THREE.BoxGeometry( .025,s,.025 ), new THREE.MeshBasicMaterial( {color: 0x0000ff} ));
+				//zaxis = new THREE.Mesh(new THREE.BoxGeometry( .025,s,.025 ), new THREE.MeshBasicMaterial( {color: 0x0000ff} ));
 				yaxis = new THREE.Mesh(new THREE.BoxGeometry( .025,.025,s ), new THREE.MeshBasicMaterial( {color: 0x00ff00} ));
-				// xaxis.geometry.translate(s/2,0,0)
-				// zaxis.geometry.translate(0,s/2,0)
-				// yaxis.geometry.translate(0,0,-s/2)
+				xaxis.geometry.translate(s/2,0,0)
+			//	zaxis.geometry.translate(0,s/2,0)
+				yaxis.geometry.translate(0,0,-s/2)
 				scene.add(xaxis);
 				scene.add(yaxis);
-				scene.add(zaxis);
+				//scene.add(zaxis);
 				document.getElementById("caption").innerHTML = "Loading..."
 
 				//grid
@@ -668,7 +694,7 @@
 				gui.add( params, 'rRange' ).name("R = ").onFinishChange(function(){
 			    update();
 			  });
-				gui.add( params, 'resolution' ).min(1).max(1000).step(1);
+				gui.add( params, 'resolution' ).min(1).max(500).step(1);
 				gui.add( params, 'contourPlot').name("Contour Plot").onFinishChange(function(){
 					update();
 				});
@@ -870,6 +896,8 @@
 				volume = 0;
 				absVol = 0;
 				i = 0;
+				var volGeoPos = new THREE.BoxGeometry(.01,.01,.01);
+				var volGeoNeg = new THREE.BoxGeometry(.01,.01,.01);
 				for (var y = yMin; y < yMax; y+=dy) {
 					for (var x = xMin; x < xMax; x+=dx) {
 						//point (x,z,-y)
@@ -882,14 +910,16 @@
 						}else {
 							var z = 0;
 						}
+						box = new THREE.Mesh(new THREE.BoxGeometry( dx, z ,dy ));
+						box.translateX(x)
+						box.translateY(z/2)
+						box.translateZ(-y)
+						box.updateMatrix();
 						if (z >=0 ) {
-							subBoxs[i] = new THREE.Mesh(new THREE.BoxGeometry( dx, z ,dy ), subBoxsPosMaterial);
+							volGeoPos.merge(box.geometry, box.matrix)
 						}else {
-							subBoxs[i] = new THREE.Mesh(new THREE.BoxGeometry( dx, z ,dy ), subBoxsNegMaterial);
+							volGeoNeg.merge(box.geometry, box.matrix)
 						}
-						subBoxs[i].translateX(x);
-						subBoxs[i].translateZ(-y);
-						subBoxs[i].translateY(z/2);
 						volume += dx*dy*z;
 						absVol += Math.abs(dx*dy*z);
 						i++;
@@ -900,17 +930,16 @@
 				params.average = ""+math.round(volume/(planeWidth*planeHeight),r+2)
 				intFolder.updateDisplay();
 				planeMat.visible = false;
-				for (var i = 0; i < subBoxs.length; i++) {
-					scene.add(subBoxs[i]);
-				}
+				boxFieldPos = new THREE.Mesh(volGeoPos, subBoxsPosMaterial)
+				boxFieldNeg = new THREE.Mesh(volGeoNeg, subBoxsNegMaterial)
+				scene.add(boxFieldPos)
+				scene.add(boxFieldNeg)
 			}
 
 			function clearIntegralApprox(){
 				planeMat.visible = true;
-				for (var i = 0; i < subBoxs.length; i++) {
-					scene.remove(subBoxs[i]);
-				}
-
+				scene.remove(boxFieldPos)
+				scene.remove(boxFieldNeg)
 			}
 
 			function infinitIntegralApprox(){
@@ -943,7 +972,7 @@
 			}
 
 			function drawVectors(){
-				scene.remove(zaxis);
+				//scene.remove(zaxis);
 				minValue = 10000000, maxValue = -1000000000;
 				var points = [];
 				var colors;
@@ -1123,7 +1152,7 @@
 				}
 				arrows = [];
 				if (!params.contourPlot && !params.doVectorField) {
-					scene.add(zaxis)
+					//scene.add(zaxis)
 				}
 			}
 
