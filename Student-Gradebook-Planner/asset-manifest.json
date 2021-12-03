@@ -1,16 +1,16 @@
 {
   "files": {
     "main.css": "/Student-Gradebook-Planner/static/css/main.d7140410.chunk.css",
-    "main.js": "/Student-Gradebook-Planner/static/js/main.23067a06.chunk.js",
+    "main.js": "/Student-Gradebook-Planner/static/js/main.de7cbe35.chunk.js",
     "runtime-main.js": "/Student-Gradebook-Planner/static/js/runtime-main.6d3c46a1.js",
-    "static/js/2.21290e28.chunk.js": "/Student-Gradebook-Planner/static/js/2.21290e28.chunk.js",
+    "static/js/2.3cb56784.chunk.js": "/Student-Gradebook-Planner/static/js/2.3cb56784.chunk.js",
     "index.html": "/Student-Gradebook-Planner/index.html",
-    "static/js/2.21290e28.chunk.js.LICENSE.txt": "/Student-Gradebook-Planner/static/js/2.21290e28.chunk.js.LICENSE.txt"
+    "static/js/2.3cb56784.chunk.js.LICENSE.txt": "/Student-Gradebook-Planner/static/js/2.3cb56784.chunk.js.LICENSE.txt"
   },
   "entrypoints": [
     "static/js/runtime-main.6d3c46a1.js",
-    "static/js/2.21290e28.chunk.js",
+    "static/js/2.3cb56784.chunk.js",
     "static/css/main.d7140410.chunk.css",
-    "static/js/main.23067a06.chunk.js"
+    "static/js/main.de7cbe35.chunk.js"
   ]
 }
